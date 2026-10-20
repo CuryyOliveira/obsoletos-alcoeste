@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!idValido(materialId) || !idValido(uploadId) || !jpeg)
     return res.status(400).json({ erro: 'Dados inválidos. Use uma imagem JPEG de até 3 MB.' });
   try {
-    const { materiais } = await snapshot(true);
+    const { materiais } = await snapshot(); // o Apps Script revalida o ID ao gravar; não precisa reler a planilha inteira aqui
     const material = materiais.find((m) => m.id === materialId);
     if (!material) return res.status(404).json({ erro: 'Material não encontrado.' });
     const r = await salvarFotoMaterial(getDataSource(), material, uploadId, jpeg);

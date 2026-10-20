@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api } from '../api';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { api, type Material } from '../api';
 import { useAsync } from '../useAsync';
 import { Estado } from '../components/Estado';
 import { novoUploadId, reduzirImagem } from '../imagem';
@@ -8,7 +8,10 @@ import { novoUploadId, reduzirImagem } from '../imagem';
 export default function AdminFoto() {
   const { id = '' } = useParams();
   const nav = useNavigate();
-  const { data, error, loading, reload } = useAsync(() => api.materiais(true), [id]);
+  // O item chega pronto da lista (router state): a tela abre na hora e a releitura roda em segundo plano, sem forçar a planilha.
+  const doEstado = (useLocation().state as { m?: Material } | null)?.m;
+  const fresco = useRef(false); // depois de salvar, a próxima leitura é "fresca" (outra instância do servidor pode estar defasada)
+  const { data, error, loading, reload } = useAsync(() => api.materiais(fresco.current), [id]);
   const [previa, setPrevia] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,7 +22,8 @@ export default function AdminFoto() {
   const gal = useRef<HTMLInputElement>(null);
   useEffect(() => { uploadId.current = novoUploadId(); }, [previa]);
 
-  const m = data?.materiais.find((x) => x.id === id);
+  const m = data?.materiais.find((x) => x.id === id) ?? (doEstado?.id === id ? doEstado : undefined);
+  const versaoFoto = m?.urlImagem ? encodeURIComponent(m.urlImagem.slice(-24)) : '0';
 
   async function escolher(f?: File) {
     if (!f) return;
@@ -34,6 +38,7 @@ export default function AdminFoto() {
       await api.foto(m.id, uploadId.current, previa);
       setMsg({ tipo: 'ok', texto: 'Foto salva com sucesso!' });
       setPrevia(null);
+      fresco.current = true;
       reload();
     } catch (e) { setMsg({ tipo: 'erro', texto: (e as Error).message }); }
     setBusy(false);
@@ -51,7 +56,7 @@ export default function AdminFoto() {
   return (
     <main className="page estreita">
       <Link className="voltar" to={m ? `/admin/materiais?lote=${m.lote}` : '/admin/materiais'}>← Lista</Link>
-      <Estado loading={loading} error={error} onRetry={reload}>
+      <Estado loading={loading && !m} error={m ? null : error} onRetry={reload}>
         {!m ? <p className="aviso">Material não encontrado.</p> : (
           <>
             <h1>{m.descricao}</h1>
@@ -59,7 +64,7 @@ export default function AdminFoto() {
             {previa ? (
               <img className="previa" src={previa} alt="Prévia da nova foto" />
             ) : m.urlImagem ? (
-              <img className="previa" src={`/api/img?m=${encodeURIComponent(m.id)}&t=${Date.now()}`} alt="Foto atual" />
+              <img className="previa" src={`/api/img?m=${encodeURIComponent(m.id)}&v=${versaoFoto}`} alt="Foto atual" />
             ) : <div className="previa vazio">Sem foto</div>}
             {msg && <p className={msg.tipo === 'ok' ? 'ok' : 'erro'} role="status">{msg.texto}</p>}
             {previa ? (

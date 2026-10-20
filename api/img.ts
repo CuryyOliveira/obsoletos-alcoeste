@@ -16,7 +16,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Quem vê a foto: o link do PRÓPRIO lote do material, ou o administrador logado.
     const doLote = numeroDoToken(req.query.t) === material.lote;
     if (!doLote && !sessaoValida(req)) return res.status(404).end();
-    res.setHeader('Cache-Control', doLote ? 'public, s-maxage=3600, max-age=300, stale-while-revalidate=86400' : 'private, max-age=60');
+    res.setHeader('Cache-Control', doLote
+        ? 'public, s-maxage=3600, max-age=300, stale-while-revalidate=86400'
+        : req.query.v ? 'private, max-age=86400' : 'private, max-age=60');
     const url = material.urlImagem;
     if (ehUrlBlob(url)) return res.redirect(302, url);
     const foto = await getDataSource().lerFoto(id);

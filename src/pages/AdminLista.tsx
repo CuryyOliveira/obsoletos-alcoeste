@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useAsync } from '../useAsync';
@@ -9,7 +9,9 @@ const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').to
 const PAGINA = 50;
 
 export default function AdminLista() {
-  const { data, error, loading, reload } = useAsync(() => api.materiais());
+  const fresco = useRef(false);
+  const { data, error, loading, reload } = useAsync(() => api.materiais(fresco.current));
+  const recarregar = () => { fresco.current = true; reload(); };
   const [q, setQ] = useState('');
   const [params] = useSearchParams();
   const [lote, setLote] = useState(params.get('lote') ?? '');
@@ -35,13 +37,13 @@ export default function AdminLista() {
       {/* fora do <Estado>: recarregar a lista não pode desmontar o formulário nem apagar a mensagem de sucesso */}
       {data && (novo ? (
         <NovoItem lotes={data.lotes} loteInicial={lote} onFechar={() => setNovo(false)}
-          onCriado={() => api.materiais(true).then(() => reload())} />
+          onCriado={recarregar} />
       ) : (
         <button className="btn primario" onClick={() => setNovo(true)}>+ Adicionar item</button>
       ))}
       <Estado loading={loading} error={error} onRetry={reload}>
         <p className="resumo"><strong>{total}</strong> materiais · <strong>{pend}</strong> sem foto
-          <button className="link" onClick={() => api.materiais(true).then(() => reload())}>Atualizar</button></p>
+          <button className="link" onClick={recarregar}>Atualizar</button></p>
         <div className="filtros">
           <input type="search" placeholder="Buscar por código ou descrição" value={q}
             onChange={(e) => { setQ(e.target.value); setLimite(PAGINA); }} />
@@ -54,7 +56,7 @@ export default function AdminLista() {
         <ul className="materiais">
           {filtrados.slice(0, limite).map((m) => (
             <li key={m.id}>
-              <Link className="material linha" to={`/admin/foto/${encodeURIComponent(m.id)}`}>
+              <Link className="material linha" to={`/admin/foto/${encodeURIComponent(m.id)}`} state={{ m }}>
                 <div><strong>{m.descricao}</strong>
                   <span>{m.codigo} · Lote {m.lote} · Qtd {m.quantidade}</span></div>
                 <span className={m.urlImagem ? 'tag ok' : 'tag pend'}>{m.urlImagem ? 'OK' : 'PENDENTE'}</span>

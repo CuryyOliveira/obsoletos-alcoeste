@@ -4,7 +4,7 @@ import type { DataSource } from './types.js';
 
 let instance: DataSource | null = null;
 let cache: { at: number; lotes: Awaited<ReturnType<DataSource['listLotes']>>; materiais: Awaited<ReturnType<DataSource['listMateriais']>> } | null = null;
-const TTL_MS = 30_000;
+const TTL_MS = 90_000; // leitura da planilha é a parte lenta; gravações invalidam e o admin pode forçar leitura nova
 
 export function getDataSource(): DataSource {
   if (instance) return instance;
