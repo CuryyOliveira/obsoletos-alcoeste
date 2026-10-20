@@ -1,3 +1,4 @@
+import { createAppsScript } from './appsscript.js';
 import { createMock } from './mock.js';
 import type { DataSource } from './types.js';
 
@@ -9,7 +10,11 @@ export function getDataSource(): DataSource {
   if (instance) return instance;
   const kind = process.env.DATA_SOURCE ?? 'mock';
   if (kind === 'mock') instance = createMock();
-  else throw new Error(`DATA_SOURCE "${kind}" ainda não implementado (Fase 3: Apps Script).`);
+  else if (kind === 'appsscript') {
+    const { APPS_SCRIPT_URL: url, APPS_SCRIPT_KEY: key } = process.env;
+    if (!url || !key) throw new Error('APPS_SCRIPT_URL / APPS_SCRIPT_KEY ausentes');
+    instance = createAppsScript(url, key);
+  } else throw new Error(`DATA_SOURCE inválido: "${kind}"`);
   return instance;
 }
 
