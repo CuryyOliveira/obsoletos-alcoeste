@@ -35,3 +35,8 @@ label{display:grid;gap:6px;margin:12px 0}.chk{display:flex;align-items:center;ga
 .etiqueta img{width:100%}.etiqueta figcaption{display:flex;flex-direction:column}
 .acoes-linha{display:flex;gap:6px;justify-content:center;margin-top:8px}
 @media print{.menu,.nao-imprimir,.voltar{display:none!important}body{background:#fff}.etiquetas{grid-template-columns:repeat(2,1fr)}.etiqueta{border:1px dashed #000}}
+
+.btn.perigo{background:var(--err);border-color:var(--err);color:#fff}
+.form h2{margin:0 0 4px;font-size:1.1rem}
+hr{border:0;border-top:1px solid var(--bd);margin:20px 0}
+.filtros{margin-top:12px}

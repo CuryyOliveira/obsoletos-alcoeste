@@ -13,6 +13,14 @@ export interface Material {
   lote: number;
 }
 
+export interface NovoMaterial {
+  lote: number;
+  codigo: string;
+  descricao: string;
+  quantidade: number;
+  requestId: string; // repetir o mesmo requestId não cria outro item
+}
+
 export interface DataSource {
   listLotes(): Promise<Lote[]>;
   listMateriais(): Promise<Material[]>;
@@ -20,6 +28,10 @@ export interface DataSource {
   salvarFoto(input: { materialId: string; uploadId: string; jpeg: Buffer }): Promise<{ urlImagem: string }>;
   /** Só grava a URL (coluna URL_IMAGEM) de uma foto que já está hospedada em outro lugar (Blob). */
   registrarUrl(input: { materialId: string; urlImagem: string }): Promise<void>;
+  /** Cria o material (ID gerado pelo script). Idempotente por requestId. */
+  adicionarMaterial(input: NovoMaterial): Promise<{ id: string }>;
+  /** Exclusão reversível: a linha vai para a aba Excluidos antes de sair de Materiais. */
+  excluirMaterial(input: { materialId: string }): Promise<void>;
   /** Bytes da imagem de um material (para o proxy /api/img). */
   lerFoto(materialId: string): Promise<{ contentType: string; data: Buffer } | null>;
 }

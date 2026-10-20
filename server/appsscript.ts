@@ -58,6 +58,14 @@ export function createAppsScript(url: string, key: string, fetchImpl: typeof fet
       if (typeof j.urlImagem !== 'string') throw new Error('Resposta de gravação inválida');
       return { urlImagem: j.urlImagem };
     },
+    async adicionarMaterial(input) {
+      const j = await chamar({ action: 'add', ...input });
+      if (typeof j.id !== 'string') throw new Error('Resposta de criação inválida');
+      return { id: j.id };
+    },
+    async excluirMaterial({ materialId }) {
+      await chamar({ action: 'delete', materialId });
+    },
     async registrarUrl({ materialId, urlImagem }) {
       await chamar({ action: 'seturl', materialId, url: urlImagem });
     },

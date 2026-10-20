@@ -34,6 +34,8 @@ export function createMock(): DataSource {
     urlImagem: foto ? placeholder(id) : null,
   }));
   const feitos = new Map<string, string>(); // uploadId -> urlImagem
+  const adicionados = new Map<string, string>(); // requestId -> id
+  const excluidos = new Set<string>();
 
   return {
     async listLotes() {
@@ -50,6 +52,24 @@ export function createMock(): DataSource {
       m.urlImagem = 'data:image/jpeg;base64,' + jpeg.toString('base64');
       feitos.set(uploadId, m.urlImagem);
       return { urlImagem: m.urlImagem };
+    },
+    async adicionarMaterial(input) {
+      const ja = adicionados.get(input.requestId);
+      if (ja) return { id: ja };
+      const pref = String(input.lote).padStart(2, '0') + '-';
+      const usados = new Set([...materiais.map((m) => m.id), ...excluidos]);
+      let n = 1;
+      while (usados.has(pref + String(n).padStart(3, '0'))) n++;
+      const id = pref + String(n).padStart(3, '0');
+      materiais.push({ id, codigo: input.codigo, descricao: input.descricao, quantidade: input.quantidade, lote: input.lote, urlImagem: null });
+      adicionados.set(input.requestId, id);
+      return { id };
+    },
+    async excluirMaterial({ materialId }) {
+      const i = materiais.findIndex((x) => x.id === materialId);
+      if (i < 0) throw new Error('Material não encontrado');
+      excluidos.add(materiais[i].id);
+      materiais.splice(i, 1);
     },
     async registrarUrl({ materialId, urlImagem }) {
       const m = materiais.find((x) => x.id === materialId);

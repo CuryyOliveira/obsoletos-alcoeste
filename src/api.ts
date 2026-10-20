@@ -42,6 +42,14 @@ export const api = {
   sair: () => req('/api/admin/login', { method: 'DELETE' }),
   materiais: (fresh = false) =>
     req<{ lotes: Lote[]; materiais: Material[]; linksConfigurados: boolean }>(`/api/admin/materiais${fresh ? '?fresh=1' : ''}`),
+  adicionarMaterial: (d: { lote: number; codigo: string; descricao: string; quantidade: number; requestId: string }) =>
+    req<{ ok: boolean; id: string }>('/api/admin/material', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'adicionar', ...d }),
+    }),
+  excluirMaterial: (id: string) =>
+    req<{ ok: boolean }>('/api/admin/material', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'excluir', id }),
+    }),
   foto: (materialId: string, uploadId: string, imagem: string) =>
     req<{ ok: boolean }>('/api/admin/foto', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

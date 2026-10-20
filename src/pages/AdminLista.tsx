@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useAsync } from '../useAsync';
 import { Estado } from '../components/Estado';
+import { NovoItem } from '../components/NovoItem';
 
 const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const PAGINA = 50;
@@ -14,6 +15,7 @@ export default function AdminLista() {
   const [lote, setLote] = useState(params.get('lote') ?? '');
   const [semFoto, setSemFoto] = useState(false);
   const [limite, setLimite] = useState(PAGINA);
+  const [novo, setNovo] = useState(false);
 
   const filtrados = useMemo(() => {
     const t = norm(q.trim());
@@ -30,6 +32,13 @@ export default function AdminLista() {
 
   return (
     <main className="page">
+      {/* fora do <Estado>: recarregar a lista não pode desmontar o formulário nem apagar a mensagem de sucesso */}
+      {data && (novo ? (
+        <NovoItem lotes={data.lotes} loteInicial={lote} onFechar={() => setNovo(false)}
+          onCriado={() => api.materiais(true).then(() => reload())} />
+      ) : (
+        <button className="btn primario" onClick={() => setNovo(true)}>+ Adicionar item</button>
+      ))}
       <Estado loading={loading} error={error} onRetry={reload}>
         <p className="resumo"><strong>{total}</strong> materiais · <strong>{pend}</strong> sem foto
           <button className="link" onClick={() => api.materiais(true).then(() => reload())}>Atualizar</button></p>

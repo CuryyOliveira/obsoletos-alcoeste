@@ -12,6 +12,8 @@ export default function AdminFoto() {
   const [previa, setPrevia] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExcluir, setErroExcluir] = useState('');
   const uploadId = useRef(novoUploadId()); // mesmo id em novas tentativas => sem duplicar
   const cam = useRef<HTMLInputElement>(null);
   const gal = useRef<HTMLInputElement>(null);
@@ -35,6 +37,15 @@ export default function AdminFoto() {
       reload();
     } catch (e) { setMsg({ tipo: 'erro', texto: (e as Error).message }); }
     setBusy(false);
+  }
+
+  async function excluir() {
+    if (!m) return;
+    setBusy(true); setErroExcluir('');
+    try {
+      await api.excluirMaterial(m.id);
+      nav(`/admin/materiais?lote=${m.lote}`);
+    } catch (e) { setErroExcluir((e as Error).message); setBusy(false); }
   }
 
   return (
@@ -67,6 +78,20 @@ export default function AdminFoto() {
               onChange={(e) => { escolher(e.target.files?.[0]); e.target.value = ''; }} />
             <input ref={gal} type="file" accept="image/*" hidden
               onChange={(e) => { escolher(e.target.files?.[0]); e.target.value = ''; }} />
+            <hr />
+            {!excluindo ? (
+              <button className="btn perigo" onClick={() => setExcluindo(true)} disabled={busy}>Excluir item</button>
+            ) : (
+              <div className="aviso erro" role="alertdialog" aria-label="Confirmar exclusão">
+                <p><strong>Excluir "{m.descricao}"?</strong></p>
+                <p>O item sai da lista e do site e é movido para a aba <em>Excluidos</em> da planilha, de onde pode ser recuperado. As fotos não são apagadas.</p>
+                {erroExcluir && <p role="alert">{erroExcluir}</p>}
+                <div className="acoes">
+                  <button className="btn perigo grande" onClick={excluir} disabled={busy}>{busy ? 'Excluindo…' : 'Sim, excluir'}</button>
+                  <button className="btn grande" onClick={() => { setExcluindo(false); setErroExcluir(''); }} disabled={busy}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </Estado>

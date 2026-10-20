@@ -9,6 +9,7 @@
 var FOLDER_ID = '1HcHurJLG1NjRB4O1jjG2y2VoDwkZ5N7e'; // pasta "FOTOS DO CATÁLOGO"
 var ABA_MATERIAIS = 'Materiais';
 var ABA_LOTES = 'Lotes';
+var ABA_EXCLUIDOS = 'Excluidos';
 var MAX_BYTES = 3 * 1024 * 1024;
 var MAX_IMG_BYTES = 12 * 1024 * 1024;
 // Fotos hospedadas no Vercel Blob (lote 4 em diante): só este formato de URL é aceito.
@@ -28,6 +29,8 @@ function doPost(e) {
       case 'photo': return out(salvarFoto(req));
       case 'image': return out(lerImagem(req));
       case 'seturl': return out(registrarUrl(req));
+      case 'add': return out(adicionarMaterial(req));
+      case 'delete': return out(excluirMaterial(req));
       default: return out({ ok: false, erro: 'acao_invalida' });
     }
   } catch (err) {
@@ -153,6 +156,119 @@ function registrarUrl(req) {
     var M = tabela(ABA_MATERIAIS, ['ID_MATERIAL', 'URL_IMAGEM']);
     M.sh.getRange(achar(M, id), M.idx['URL_IMAGEM'] + 1).setValue(url);
     return { ok: true, urlImagem: url };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function limpaTexto(v, max) {
+  var t = String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+  return t.length > max ? '' : t;
+}
+
+function pad(n, w) {
+  var t = String(n);
+  while (t.length < w) t = '0' + t;
+  return t;
+}
+
+/** Texto do usuário nunca vira fórmula: formato "texto simples" antes de gravar. */
+function gravaTexto(range, valor) {
+  range.setNumberFormat('@');
+  range.setValue(valor);
+}
+
+/**
+ * Cria um material no fim da aba Materiais. Gera o ID_MATERIAL ("NN-NNN", próximo número do lote, sem reaproveitar
+ * IDs já usados nem os da aba Excluidos), copia as fórmulas da última linha preenchida (ex.: STATUS_FOTO) e é
+ * idempotente por requestId.
+ */
+function adicionarMaterial(req) {
+  var rid = String(req.requestId || '');
+  var lote = Number(req.lote);
+  var codigo = limpaTexto(req.codigo, 40);
+  var desc = limpaTexto(req.descricao, 120);
+  var qtd = Number(req.quantidade);
+  if (!/^[\w.-]{1,64}$/.test(rid) || !isFinite(lote) || lote < 1 || lote % 1 || !codigo || !desc || !isFinite(qtd) || qtd < 1 || qtd > 1000000 || qtd % 1)
+    return { ok: false, erro: 'dados_invalidos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var feito = props.getProperty('add_' + rid);
+    if (feito) return { ok: true, id: feito };
+    var L = tabela(ABA_LOTES, ['VENDA', 'LOTE']);
+    var nomeLote = null;
+    for (var i = 1; i < L.v.length; i++) if (Number(L.v[i][L.idx['VENDA']]) === lote) nomeLote = String(L.v[i][L.idx['LOTE']]).trim();
+    if (!nomeLote) return { ok: false, erro: 'lote_inexistente' };
+
+    var M = tabela(ABA_MATERIAIS, ['ID_MATERIAL', 'VENDA', 'LOTE', 'CODIGO', 'DESCRICAO', 'QUANTIDADE']);
+    var pref = pad(lote, 2) + '-';
+    var usados = {};
+    var max = 0;
+    var ultima = 1;
+    var anota = function (id) {
+      if (!id) return;
+      usados[id] = true;
+      if (id.indexOf(pref) === 0) max = Math.max(max, parseInt(id.slice(pref.length), 10) || 0);
+    };
+    for (var j = 1; j < M.v.length; j++) {
+      var id = String(M.v[j][M.idx['ID_MATERIAL']]).trim();
+      if (id) { anota(id); ultima = j + 1; }
+    }
+    var ex = SpreadsheetApp.getActive().getSheetByName(ABA_EXCLUIDOS);
+    if (ex && ex.getLastRow() > 1) {
+      var cab = ex.getRange(1, 1, 1, ex.getLastColumn()).getValues()[0].map(norm);
+      var c = cab.indexOf('ID_MATERIAL');
+      if (c >= 0) ex.getRange(2, c + 1, ex.getLastRow() - 1, 1).getValues().forEach(function (r) { anota(String(r[0]).trim()); });
+    }
+    var n = max + 1;
+    var novoId = pref + pad(n, 3);
+    while (usados[novoId]) { n++; novoId = pref + pad(n, 3); }
+
+    var linha = ultima + 1;
+    var sh = M.sh;
+    var nCols = M.v[0].length;
+    var f = sh.getRange(ultima, 1, 1, nCols).getFormulasR1C1()[0];
+    for (var k = 0; k < nCols; k++) if (f[k]) sh.getRange(linha, k + 1).setFormulaR1C1(f[k]);
+    var col = function (nome) { return sh.getRange(linha, M.idx[nome] + 1); };
+    gravaTexto(col('ID_MATERIAL'), novoId);
+    col('VENDA').setValue(lote);
+    gravaTexto(col('LOTE'), nomeLote);
+    if (/^\d{1,15}$/.test(codigo)) col('CODIGO').setValue(Number(codigo)); else gravaTexto(col('CODIGO'), codigo);
+    gravaTexto(col('DESCRICAO'), desc);
+    col('QUANTIDADE').setValue(qtd);
+    props.setProperty('add_' + rid, novoId);
+    return { ok: true, id: novoId };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Exclusão REVERSÍVEL: copia a linha para a aba Excluidos (criada se não existir, com data/hora) e só então remove
+ * da aba Materiais. Fotos no Drive/Blob não são apagadas.
+ */
+function excluirMaterial(req) {
+  var id = String(req.materialId || '');
+  if (!/^[\w.-]{1,64}$/.test(id)) return { ok: false, erro: 'dados_invalidos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var M = tabela(ABA_MATERIAIS, ['ID_MATERIAL']);
+    var linha = achar(M, id);
+    var nCols = M.v[0].length;
+    var ss = SpreadsheetApp.getActive();
+    var ex = ss.getSheetByName(ABA_EXCLUIDOS);
+    if (!ex) {
+      ex = ss.insertSheet(ABA_EXCLUIDOS);
+      ex.getRange(1, 1, 1, nCols + 1).setValues([M.v[0].concat(['EXCLUIDO_EM'])]);
+    }
+    var destino = ex.getLastRow() + 1;
+    ex.getRange(destino, 1, 1, nCols + 1).setValues([M.v[linha - 1].concat([new Date()])]);
+    if (String(ex.getRange(destino, M.idx['ID_MATERIAL'] + 1).getValue()).trim() !== id) throw new Error('arquivo_falhou');
+    M.sh.deleteRow(linha);
+    return { ok: true };
   } finally {
     lock.releaseLock();
   }
