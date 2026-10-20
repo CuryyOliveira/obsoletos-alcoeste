@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ApiError, api } from '../api';
+import { PARAM_LOTE } from '../rotas';
 import { useAsync } from '../useAsync';
 import { Estado } from '../components/Estado';
 
 export default function LotePublico({ previa = false }: { previa?: boolean }) {
-  const { t = '' } = useParams();
+  const t = useParams()[PARAM_LOTE] ?? '';
   const { data, error, loading, reload } = useAsync(() => api.lote(t), [t]);
   const [zoom, setZoom] = useState<string | null>(null);
 

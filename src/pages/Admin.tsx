@@ -5,6 +5,7 @@ import AdminLista from './AdminLista';
 import AdminFoto from './AdminFoto';
 import AdminQr from './AdminQr';
 import LotePublico from './LotePublico';
+import { ROTA_PREVIA } from '../rotas';
 
 export default function Admin() {
   const [ok, setOk] = useState<boolean | null>(null);
@@ -52,7 +53,7 @@ function Painel({ onSair }: { onSair: () => void }) {
         <Route index element={<AdminLista />} />
         <Route path="foto/:id" element={<AdminFoto />} />
         <Route path="qr" element={<AdminQr />} />
-        <Route path="previa/:t" element={<><Link className="voltar" to="/admin/qr">← Voltar</Link><LotePublico previa /></>} />
+        <Route path={ROTA_PREVIA} element={<><Link className="voltar" to="/admin/qr">← Voltar</Link><LotePublico previa /></>} />
       </Routes>
     </div>
   );
