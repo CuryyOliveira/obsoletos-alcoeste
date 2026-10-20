@@ -11,6 +11,8 @@ var ABA_MATERIAIS = 'Materiais';
 var ABA_LOTES = 'Lotes';
 var MAX_BYTES = 3 * 1024 * 1024;
 var MAX_IMG_BYTES = 12 * 1024 * 1024;
+// Fotos hospedadas no Vercel Blob (lote 4 em diante): só este formato de URL é aceito.
+var URL_BLOB = /^https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/fotos\/[\w.-]+\/[\w.-]+\.jpg$/;
 
 function doGet() {
   return out({ ok: true, servico: 'fotos-obsoletos' }); // teste de vida; não devolve dados
@@ -25,6 +27,7 @@ function doPost(e) {
       case 'read': return out(lerTudo());
       case 'photo': return out(salvarFoto(req));
       case 'image': return out(lerImagem(req));
+      case 'seturl': return out(registrarUrl(req));
       default: return out({ ok: false, erro: 'acao_invalida' });
     }
   } catch (err) {
@@ -137,4 +140,20 @@ function lerImagem(req) {
   var bytes = blob.getBytes();
   if (bytes.length > MAX_IMG_BYTES) return { ok: false, erro: 'imagem_grande' };
   return { ok: true, contentType: blob.getContentType(), data: Utilities.base64Encode(bytes) };
+}
+
+/** Grava SÓ a célula URL_IMAGEM do material, e só com URL do nosso Blob. */
+function registrarUrl(req) {
+  var id = String(req.materialId || '');
+  var url = String(req.url || '');
+  if (!/^[\w.-]{1,64}$/.test(id) || !URL_BLOB.test(url)) return { ok: false, erro: 'dados_invalidos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var M = tabela(ABA_MATERIAIS, ['ID_MATERIAL', 'URL_IMAGEM']);
+    M.sh.getRange(achar(M, id), M.idx['URL_IMAGEM'] + 1).setValue(url);
+    return { ok: true, urlImagem: url };
+  } finally {
+    lock.releaseLock();
+  }
 }

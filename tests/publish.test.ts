@@ -45,3 +45,37 @@ describe('upload', () => {
     expect(a.urlImagem).toBe(b.urlImagem);
   });
 });
+
+import { salvarFotoMaterial, loteInicialBlob } from '../server/fotos';
+
+describe('fotos: Drive x Blob', () => {
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 1]);
+  const url = 'https://abc123.public.blob.vercel-storage.com/fotos/04-001/u1.jpg';
+  const blob = async () => url;
+  it('lote 4+ com token vai ao Blob e registra a URL', async () => {
+    const d = createMock();
+    const r = await salvarFotoMaterial(d, { id: 'M003', lote: 4 }, 'u1', jpeg, { env: { BLOB_READ_WRITE_TOKEN: 't' }, blob });
+    expect(r).toEqual({ urlImagem: url, destino: 'blob' });
+    const m = (await d.listMateriais()).find((x) => x.id === 'M003')!;
+    expect(m.urlImagem).toBe(url);
+  });
+  it('lote 1–3 continua no Drive mesmo com token', async () => {
+    const r = await salvarFotoMaterial(createMock(), { id: 'M003', lote: 3 }, 'u2', jpeg, { env: { BLOB_READ_WRITE_TOKEN: 't' }, blob });
+    expect(r.destino).toBe('drive');
+  });
+  it('sem token cai no Drive em vez de falhar', async () => {
+    const r = await salvarFotoMaterial(createMock(), { id: 'M003', lote: 5 }, 'u3', jpeg, { env: {}, blob });
+    expect(r.destino).toBe('drive');
+  });
+  it('ponto de corte configurável e valores ruins voltam a 4', () => {
+    expect(loteInicialBlob({ FOTOS_BLOB_A_PARTIR_DO_LOTE: '6' })).toBe(6);
+    expect(loteInicialBlob({ FOTOS_BLOB_A_PARTIR_DO_LOTE: 'abc' })).toBe(4);
+    expect(loteInicialBlob({})).toBe(4);
+  });
+  it('catálogo público usa URL direta só para o nosso Blob; outras URLs passam pelo proxy', () => {
+    const l = [{ numero: 4, nome: 'N' }];
+    const mk = (u: string): import('../server/types').Material => ({ id: 'X1', codigo: 'c', descricao: 'd', quantidade: 1, urlImagem: u, lote: 4 });
+    expect(detalhePublico(4, l, [mk(url)])!.materiais[0].foto).toBe(url);
+    expect(detalhePublico(4, l, [mk('https://evil.example.com/a.jpg')])!.materiais[0].foto).toBe('/api/img?m=X1');
+  });
+});

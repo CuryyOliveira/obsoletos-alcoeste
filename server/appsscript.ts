@@ -58,6 +58,9 @@ export function createAppsScript(url: string, key: string, fetchImpl: typeof fet
       if (typeof j.urlImagem !== 'string') throw new Error('Resposta de gravação inválida');
       return { urlImagem: j.urlImagem };
     },
+    async registrarUrl({ materialId, urlImagem }) {
+      await chamar({ action: 'seturl', materialId, url: urlImagem });
+    },
     async lerFoto(materialId) {
       try {
         const j = await chamar({ action: 'image', materialId });

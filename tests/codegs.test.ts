@@ -84,4 +84,13 @@ describe('Code.gs', () => {
     expect(A.chamar({ action: 'image', key: KEY, materialId: '03-147' }).ok).toBe(true);
     expect(A.chamar({ action: 'image', key: KEY, materialId: '03-155' }).erro).toBe('sem_imagem');
   });
+  it('seturl: grava só URL do nosso Blob na célula do material', () => {
+    const ok = 'https://abc123.public.blob.vercel-storage.com/fotos/03-155/u9.jpg';
+    expect(A.chamar({ action: 'seturl', key: KEY, materialId: '03-155', url: ok }).ok).toBe(true);
+    expect(A.writes).toHaveLength(1);
+    expect(A.writes[0].slice(0, 2)).toEqual([3, 9]);
+    for (const ruim of ['https://evil.example.com/a.jpg', 'http://abc.public.blob.vercel-storage.com/fotos/a/b.jpg', 'javascript:alert(1)'])
+      expect(A.chamar({ action: 'seturl', key: KEY, materialId: '03-155', url: ruim }).erro).toBe('dados_invalidos');
+    expect(A.writes).toHaveLength(1);
+  });
 });

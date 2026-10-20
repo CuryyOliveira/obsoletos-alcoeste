@@ -51,6 +51,11 @@ export function createMock(): DataSource {
       feitos.set(uploadId, m.urlImagem);
       return { urlImagem: m.urlImagem };
     },
+    async registrarUrl({ materialId, urlImagem }) {
+      const m = materiais.find((x) => x.id === materialId);
+      if (!m) throw new Error('Material não encontrado');
+      m.urlImagem = urlImagem;
+    },
     async lerFoto(materialId) {
       const m = materiais.find((x) => x.id === materialId);
       if (!m?.urlImagem) return null;

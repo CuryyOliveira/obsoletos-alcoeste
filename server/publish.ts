@@ -1,3 +1,4 @@
+import { ehUrlBlob } from './blob.js';
 import type { Lote, Material } from './types.js';
 
 /**
@@ -35,7 +36,8 @@ export function detalhePublico(numero: number, lotes: Lote[], materiais: Materia
     materiais: ms.map((m) => ({
       descricao: m.descricao,
       quantidade: m.quantidade,
-      foto: m.urlImagem ? `/api/img?m=${encodeURIComponent(m.id)}` : null,
+      // Blob: URL direta (CDN, sem passar por função). Drive: via proxy /api/img.
+      foto: ehUrlBlob(m.urlImagem) ? m.urlImagem : m.urlImagem ? `/api/img?m=${encodeURIComponent(m.id)}` : null,
     })),
   };
 }

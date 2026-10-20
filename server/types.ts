@@ -18,6 +18,8 @@ export interface DataSource {
   listMateriais(): Promise<Material[]>;
   /** Grava a foto (Drive) e a URL na coluna I. Idempotente por uploadId. */
   salvarFoto(input: { materialId: string; uploadId: string; jpeg: Buffer }): Promise<{ urlImagem: string }>;
+  /** Só grava a URL (coluna URL_IMAGEM) de uma foto que já está hospedada em outro lugar (Blob). */
+  registrarUrl(input: { materialId: string; urlImagem: string }): Promise<void>;
   /** Bytes da imagem de um material (para o proxy /api/img). */
   lerFoto(materialId: string): Promise<{ contentType: string; data: Buffer } | null>;
 }
