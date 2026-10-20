@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import AdminLista from './AdminLista';
+import AdminLotes from './AdminLotes';
 import AdminFoto from './AdminFoto';
 import AdminQr from './AdminQr';
 import LotePublico from './LotePublico';
@@ -45,12 +46,14 @@ function Painel({ onSair }: { onSair: () => void }) {
   return (
     <div className="admin">
       <nav className="menu">
-        <NavLink to="/admin" end>Materiais</NavLink>
+        <NavLink to="/admin" end>Lotes</NavLink>
+        <NavLink to="/admin/materiais">Materiais</NavLink>
         <NavLink to="/admin/qr">QR Codes</NavLink>
         <button className="link" onClick={async () => { await api.sair(); onSair(); nav('/admin'); }}>Sair</button>
       </nav>
       <Routes>
-        <Route index element={<AdminLista />} />
+        <Route index element={<AdminLotes />} />
+        <Route path="materiais" element={<AdminLista />} />
         <Route path="foto/:id" element={<AdminFoto />} />
         <Route path="qr" element={<AdminQr />} />
         <Route path={ROTA_PREVIA} element={<><Link className="voltar" to="/admin/qr">← Voltar</Link><LotePublico previa /></>} />

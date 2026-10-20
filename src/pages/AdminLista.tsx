@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useAsync } from '../useAsync';
 import { Estado } from '../components/Estado';
@@ -10,7 +10,8 @@ const PAGINA = 50;
 export default function AdminLista() {
   const { data, error, loading, reload } = useAsync(() => api.materiais());
   const [q, setQ] = useState('');
-  const [lote, setLote] = useState('');
+  const [params] = useSearchParams();
+  const [lote, setLote] = useState(params.get('lote') ?? '');
   const [semFoto, setSemFoto] = useState(false);
   const [limite, setLimite] = useState(PAGINA);
 

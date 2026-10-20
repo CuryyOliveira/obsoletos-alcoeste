@@ -39,7 +39,7 @@ export default function AdminFoto() {
 
   return (
     <main className="page estreita">
-      <Link className="voltar" to="/admin">← Lista</Link>
+      <Link className="voltar" to={m ? `/admin/materiais?lote=${m.lote}` : '/admin/materiais'}>← Lista</Link>
       <Estado loading={loading} error={error} onRetry={reload}>
         {!m ? <p className="aviso">Material não encontrado.</p> : (
           <>
@@ -60,7 +60,7 @@ export default function AdminFoto() {
               <div className="acoes">
                 <button className="btn primario grande" onClick={() => cam.current?.click()}>📷 Tirar foto</button>
                 <button className="btn grande" onClick={() => gal.current?.click()}>🖼️ Escolher da galeria</button>
-                {msg?.tipo === 'ok' && <button className="btn grande" onClick={() => nav('/admin')}>Voltar à lista</button>}
+                {msg?.tipo === 'ok' && <button className="btn grande" onClick={() => nav(`/admin/materiais?lote=${m.lote}`)}>Voltar à lista</button>}
               </div>
             )}
             <input ref={cam} type="file" accept="image/*" capture="environment" hidden
