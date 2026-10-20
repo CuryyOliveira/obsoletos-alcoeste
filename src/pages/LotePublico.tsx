@@ -1,26 +1,24 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { ApiError, api } from '../api';
 import { useAsync } from '../useAsync';
 import { Estado } from '../components/Estado';
 
 export default function LotePublico({ previa = false }: { previa?: boolean }) {
-  const { n = '' } = useParams();
-  const { data, error, loading, reload } = useAsync(() => api.lote(n), [n]);
+  const { t = '' } = useParams();
+  const { data, error, loading, reload } = useAsync(() => api.lote(t), [t]);
   const [zoom, setZoom] = useState<string | null>(null);
 
   if (error instanceof ApiError && error.status === 404)
     return (
       <main className="page">
         <div className="aviso"><h1>Lote não encontrado</h1>
-          <p>Este lote não existe ou ainda não foi publicado.</p>
-          <Link className="btn" to="/">Ver lotes disponíveis</Link></div>
+          <p>Este link não é válido ou o lote ainda não foi publicado. Escaneie novamente o QR Code da caixa.</p></div>
       </main>
     );
 
   return (
     <main className="page">
-      {!previa && <Link to="/" className="voltar">← Todos os lotes</Link>}
       <Estado loading={loading} error={error} onRetry={reload}>
         {data && (
           <>

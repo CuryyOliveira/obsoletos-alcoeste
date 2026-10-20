@@ -1,8 +1,8 @@
-export interface PublicLote { numero: number; nome: string; totalItens: number; totalPecas: number }
-export interface PublicLoteDetalhe extends PublicLote {
+export interface PublicLoteDetalhe {
+  numero: number; nome: string; totalItens: number; totalPecas: number;
   materiais: { descricao: string; quantidade: number; foto: string | null }[];
 }
-export interface Lote { numero: number; nome: string }
+export interface Lote { numero: number; nome: string; token: string | null }
 export interface Material {
   id: string; codigo: string; descricao: string; quantidade: number; urlImagem: string | null; lote: number;
 }
@@ -24,8 +24,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  lotes: () => req<PublicLote[]>('/api/public/lotes'),
-  lote: (n: string) => req<PublicLoteDetalhe>(`/api/public/lote?n=${encodeURIComponent(n)}`),
+  lote: (t: string) => req<PublicLoteDetalhe>(`/api/public/lote?t=${encodeURIComponent(t)}`),
   sessao: () => req<{ ok: boolean }>('/api/admin/login'),
   entrar: (pin: string) =>
     req<{ ok: boolean }>('/api/admin/login', {
@@ -33,7 +32,7 @@ export const api = {
     }),
   sair: () => req('/api/admin/login', { method: 'DELETE' }),
   materiais: (fresh = false) =>
-    req<{ lotes: Lote[]; materiais: Material[] }>(`/api/admin/materiais${fresh ? '?fresh=1' : ''}`),
+    req<{ lotes: Lote[]; materiais: Material[]; linksConfigurados: boolean }>(`/api/admin/materiais${fresh ? '?fresh=1' : ''}`),
   foto: (materialId: string, uploadId: string, imagem: string) =>
     req<{ ok: boolean }>('/api/admin/foto', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

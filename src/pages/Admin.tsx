@@ -52,7 +52,7 @@ function Painel({ onSair }: { onSair: () => void }) {
         <Route index element={<AdminLista />} />
         <Route path="foto/:id" element={<AdminFoto />} />
         <Route path="qr" element={<AdminQr />} />
-        <Route path="previa/:n" element={<><Link className="voltar" to="/admin/qr">← Voltar</Link><LotePublico previa /></>} />
+        <Route path="previa/:t" element={<><Link className="voltar" to="/admin/qr">← Voltar</Link><LotePublico previa /></>} />
       </Routes>
     </div>
   );

@@ -5,39 +5,35 @@ import type { Lote, Material } from './types.js';
  * REGRA DE PUBLICAÇÃO (decisão 3A): um lote é público se existe na aba LOTES.
  * Uma foto é pública só se o material tem URL_IMAGEM preenchida.
  * Campos públicos: nome do lote, quantidades, descrição, foto. NUNCA código nem IDs de planilha.
+ * Acesso: só com o link assinado do próprio lote (server/links.ts); não há lista pública nem navegação entre lotes.
  */
-export interface PublicLote {
+export interface PublicLoteDetalhe {
   numero: number;
   nome: string;
   totalItens: number;
   totalPecas: number;
-}
-export interface PublicLoteDetalhe extends PublicLote {
   materiais: { descricao: string; quantidade: number; foto: string | null }[];
 }
 
-const resumo = (l: Lote, ms: Material[]): PublicLote => ({
-  numero: l.numero,
-  nome: l.nome,
-  totalItens: ms.length,
-  totalPecas: ms.reduce((s, m) => s + m.quantidade, 0),
-});
-
-export function listarPublico(lotes: Lote[], materiais: Material[]): PublicLote[] {
-  return lotes.map((l) => resumo(l, materiais.filter((m) => m.lote === l.numero)));
-}
-
-export function detalhePublico(numero: number, lotes: Lote[], materiais: Material[]): PublicLoteDetalhe | null {
+/** `token` é o do próprio lote; entra no endereço das fotos servidas pelo proxy. Não existe listagem pública de lotes. */
+export function detalhePublico(numero: number, lotes: Lote[], materiais: Material[], token: string): PublicLoteDetalhe | null {
   const lote = lotes.find((l) => l.numero === numero);
   if (!lote) return null;
   const ms = materiais.filter((m) => m.lote === numero);
   return {
-    ...resumo(lote, ms),
+    numero: lote.numero,
+    nome: lote.nome,
+    totalItens: ms.length,
+    totalPecas: ms.reduce((s, m) => s + m.quantidade, 0),
     materiais: ms.map((m) => ({
       descricao: m.descricao,
       quantidade: m.quantidade,
-      // Blob: URL direta (CDN, sem passar por função). Drive: via proxy /api/img.
-      foto: ehUrlBlob(m.urlImagem) ? m.urlImagem : m.urlImagem ? `/api/img?m=${encodeURIComponent(m.id)}` : null,
+      // Blob: URL direta e impossível de adivinhar (uuid no caminho). Drive: via proxy /api/img, que exige o token do lote.
+      foto: ehUrlBlob(m.urlImagem)
+        ? m.urlImagem
+        : m.urlImagem
+          ? `/api/img?m=${encodeURIComponent(m.id)}&t=${encodeURIComponent(token)}`
+          : null,
     })),
   };
 }

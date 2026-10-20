@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createMock } from '../server/mock';
-import { detalhePublico, fotoPublica, listarPublico } from '../server/publish';
+import { detalhePublico, fotoPublica } from '../server/publish';
 import { parseJpegDataUrl } from '../server/validate';
 
 const ds = createMock();
@@ -8,18 +8,18 @@ const ds = createMock();
 describe('catálogo público', () => {
   it('não vaza código nem ID do material', async () => {
     const [lotes, ms] = [await ds.listLotes(), await ds.listMateriais()];
-    // O ID_MATERIAL só aparece como chave da imagem (/api/img?m=...), que só serve fotos publicadas.
-    const json = JSON.stringify([listarPublico(lotes, ms), detalhePublico(1, lotes, ms)])
-      .replace(/\/api\/img\?m=[\w.-]+/g, '/api/img');
+    // O ID_MATERIAL só aparece como chave da imagem (/api/img?m=...&t=...), que exige o token do próprio lote.
+    const json = JSON.stringify(detalhePublico(1, lotes, ms, '1-tok'))
+      .replace(/\/api\/img\?m=[\w.-]+&t=[\w-]+/g, '/api/img');
     expect(json).not.toMatch(/COD-/);
     expect(json).not.toMatch(/"id"/);
     expect(json).not.toMatch(/M00\d/);
   });
   it('lote inexistente devolve null', async () => {
-    expect(detalhePublico(99, await ds.listLotes(), await ds.listMateriais())).toBeNull();
+    expect(detalhePublico(99, await ds.listLotes(), await ds.listMateriais(), 't')).toBeNull();
   });
   it('só mostra materiais do próprio lote e totais corretos', async () => {
-    const d = detalhePublico(1, await ds.listLotes(), await ds.listMateriais())!;
+    const d = detalhePublico(1, await ds.listLotes(), await ds.listMateriais(), '1-tok')!;
     expect(d.totalItens).toBe(6);
     expect(d.totalPecas).toBe(4 + 61 + 2 + 2 + 1 + 14);
   });
@@ -75,7 +75,7 @@ describe('fotos: Drive x Blob', () => {
   it('catálogo público usa URL direta só para o nosso Blob; outras URLs passam pelo proxy', () => {
     const l = [{ numero: 4, nome: 'N' }];
     const mk = (u: string): import('../server/types').Material => ({ id: 'X1', codigo: 'c', descricao: 'd', quantidade: 1, urlImagem: u, lote: 4 });
-    expect(detalhePublico(4, l, [mk(url)])!.materiais[0].foto).toBe(url);
-    expect(detalhePublico(4, l, [mk('https://evil.example.com/a.jpg')])!.materiais[0].foto).toBe('/api/img?m=X1');
+    expect(detalhePublico(4, l, [mk(url)], '4-tok')!.materiais[0].foto).toBe(url);
+    expect(detalhePublico(4, l, [mk('https://evil.example.com/a.jpg')], '4-tok')!.materiais[0].foto).toBe('/api/img?m=X1&t=4-tok');
   });
 });
