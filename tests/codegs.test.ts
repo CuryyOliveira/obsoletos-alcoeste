@@ -17,7 +17,7 @@ function ambiente() {
   const arquivos: { nome: string; id: string }[] = [];
   const props: Record<string, string> = { APPS_SCRIPT_KEY: 'k'.repeat(30) };
   const mkSheet = (v: unknown[][], nome: string) => ({
-    getDataRange: () => ({ getValues: () => v }),
+    getDataRange: () => ({ getValues: () => v, getDisplayValues: () => v.map((r) => r.map((x) => (x as { __display?: string })?.__display ?? String(x))) }),
     getRange: (r: number, c: number) => ({ setValue: (x: unknown) => { writes.push([r, c, x]); if (nome === 'Materiais') v[r - 1][c - 1] = x; } }),
   });
   const abas: Record<string, unknown> = { Materiais: mkSheet(mat, 'Materiais'), Lotes: mkSheet(lotes, 'Lotes') };
@@ -92,5 +92,27 @@ describe('Code.gs', () => {
     for (const ruim of ['https://evil.example.com/a.jpg', 'http://abc.public.blob.vercel-storage.com/fotos/a/b.jpg', 'javascript:alert(1)'])
       expect(A.chamar({ action: 'seturl', key: KEY, materialId: '03-155', url: ruim }).erro).toBe('dados_invalidos');
     expect(A.writes).toHaveLength(1);
+  });
+});
+
+describe('Code.gs: códigos que o Planilhas converteu em data', () => {
+  const lerCodigo = (bruto: string | number | Date) => {
+    const e = ambiente();
+    (e.mat[1] as unknown[])[3] = bruto;
+    return e.chamar({ action: 'read', key: KEY }).materiais[0].codigo;
+  };
+  it('data 01/03/5026 vira "5026-3"; 01/09/4951 vira "4951-9"; mês sem zero à esquerda', () => {
+    expect(lerCodigo(new Date(5026, 2, 1))).toBe('5026-3');
+    expect(lerCodigo(new Date(4951, 8, 1))).toBe('4951-9');
+    expect(lerCodigo(new Date(5066, 6, 1))).toBe('5066-7');
+    expect(lerCodigo(new Date(5077, 8, 1, 5))).toBe('5077-9'); // hora estranha de fuso histórico não muda o mês
+  });
+  it('se a planilha já EXIBE o código como texto ("5026-03"), usa exatamente o que ela exibe', () => {
+    expect(lerCodigo(Object.assign(new Date(5026, 2, 1), { __display: '5026-03' }))).toBe('5026-03');
+  });
+  it('códigos normais continuam iguais: número, texto com hífen e texto com espaços', () => {
+    expect(lerCodigo(463430)).toBe('463430');
+    expect(lerCodigo('21942-8')).toBe('21942-8');
+    expect(lerCodigo('  ABC-1 ')).toBe('ABC-1');
   });
 });

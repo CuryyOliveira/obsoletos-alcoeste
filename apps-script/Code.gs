@@ -58,13 +58,28 @@ function norm(h) {
 function tabela(nomeAba, obrigatorias) {
   var sh = SpreadsheetApp.getActive().getSheetByName(nomeAba);
   if (!sh) throw new Error('aba_ausente:' + nomeAba);
-  var v = sh.getDataRange().getValues();
+  var rng = sh.getDataRange();
+  var v = rng.getValues();
+  var d = rng.getDisplayValues(); // como a célula aparece na planilha (texto)
   var idx = {};
   for (var c = 0; c < v[0].length; c++) idx[norm(v[0][c])] = c;
   obrigatorias.forEach(function (n) {
     if (idx[n] === undefined) throw new Error('coluna_ausente:' + nomeAba + ':' + n);
   });
-  return { sh: sh, v: v, idx: idx };
+  return { sh: sh, v: v, d: d, idx: idx };
+}
+
+/**
+ * Texto de uma célula de código. O Planilhas converte códigos como "5026-3" em DATA (ano 5026, mês março);
+ * nesse caso devolvemos o código como aparece na planilha, ou o reconstruímos como "ano-mês" (sem zero à esquerda).
+ */
+function textoCodigo(bruto, exibido) {
+  if (Object.prototype.toString.call(bruto) === '[object Date]') {
+    var e = String(exibido).trim();
+    if (/^\d{3,5}-\d{1,2}$/.test(e)) return e;
+    return bruto.getFullYear() + '-' + (bruto.getMonth() + 1);
+  }
+  return String(bruto).trim();
 }
 
 function lerTudo() {
@@ -86,7 +101,7 @@ function lerTudo() {
     var url = String(r[M.idx['URL_IMAGEM']]).trim();
     materiais.push({
       id: id,
-      codigo: String(r[M.idx['CODIGO']]).trim(),
+      codigo: textoCodigo(r[M.idx['CODIGO']], M.d[j][M.idx['CODIGO']]),
       descricao: String(r[M.idx['DESCRICAO']]).trim(),
       quantidade: isFinite(q) ? q : 0,
       urlImagem: url || null,

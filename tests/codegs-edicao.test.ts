@@ -8,7 +8,7 @@ class Aba {
   constructor(public nome: string, public v: unknown[][], public f: string[][] = v.map((r) => r.map(() => ''))) {}
   getLastRow() { return this.v.length; }
   getLastColumn() { return Math.max(...this.v.map((r) => r.length)); }
-  getDataRange() { return { getValues: () => this.v.map((r) => [...r]) }; }
+  getDataRange() { return { getValues: () => this.v.map((r) => [...r]), getDisplayValues: () => this.v.map((r) => r.map((x) => String(x))) }; }
   deleteRow(n: number) { this.v.splice(n - 1, 1); this.f.splice(n - 1, 1); }
   getRange(r: number, c: number, nr = 1, nc = 1) {
     const aba = this;
