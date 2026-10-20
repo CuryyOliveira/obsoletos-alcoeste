@@ -7,6 +7,8 @@ export interface Material {
   id: string; codigo: string; descricao: string; quantidade: number; urlImagem: string | null; lote: number;
 }
 
+export interface LoteResumo { numero: number; nome: string; totalItens: number; totalPecas: number; token: string }
+
 export class ApiError extends Error {
   constructor(public status: number, msg: string) { super(msg); }
 }
@@ -25,6 +27,13 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   lote: (t: string) => req<PublicLoteDetalhe>(`/api/public/lote?t=${encodeURIComponent(t)}`),
+  viewSessao: () => req<{ ok: boolean }>('/api/view/login'),
+  viewEntrar: (pin: string) =>
+    req<{ ok: boolean }>('/api/view/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }),
+    }),
+  viewSair: () => req('/api/view/login', { method: 'DELETE' }),
+  viewLotes: () => req<LoteResumo[]>('/api/view/lotes'),
   sessao: () => req<{ ok: boolean }>('/api/admin/login'),
   entrar: (pin: string) =>
     req<{ ok: boolean }>('/api/admin/login', {

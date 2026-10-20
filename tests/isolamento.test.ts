@@ -73,3 +73,28 @@ describe('fotos', () => {
     expect((await get(imgHandler, { m: 'M001' })).code).toBe(404);
   });
 });
+
+import lotesView from '../api/view/lotes';
+import { criarCookie, criarCookieView } from '../server/auth';
+
+describe('lista de lotes (equipe)', () => {
+  const comCookie = (c?: string) => async () => {
+    const r = resp();
+    await lotesView({ query: {}, method: 'GET', headers: c ? { cookie: c.split(';')[0] } : {} } as any, r);
+    return r;
+  };
+  it('sem código: 401, sem vazar nada', async () => {
+    const r = await comCookie()();
+    expect(r.code).toBe(401);
+    expect(JSON.stringify(r.body)).not.toMatch(/Herbicida|Fictício|token/);
+  });
+  it('com código de visualização ou admin: lista com link assinado e sem código de material', async () => {
+    for (const c of [criarCookieView(), criarCookie()]) {
+      const r = await comCookie(c)();
+      expect(r.code).toBe(200);
+      expect((r.body as any[]).length).toBeGreaterThan(0);
+      expect((r.body as any[])[0].token).toMatch(/^\d+-[0-9a-f]{16}$/);
+      expect(JSON.stringify(r.body)).not.toMatch(/COD-|"id"/);
+    }
+  });
+});

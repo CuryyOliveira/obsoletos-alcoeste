@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api';
 import { PARAM_LOTE } from '../rotas';
 import { useAsync } from '../useAsync';
@@ -8,6 +8,7 @@ import { Estado } from '../components/Estado';
 export default function LotePublico({ previa = false }: { previa?: boolean }) {
   const t = useParams()[PARAM_LOTE] ?? '';
   const { data, error, loading, reload } = useAsync(() => api.lote(t), [t]);
+  const voltar = (useLocation().state as { voltar?: string } | null)?.voltar;
   const [zoom, setZoom] = useState<string | null>(null);
 
   if (error instanceof ApiError && error.status === 404)
@@ -20,6 +21,7 @@ export default function LotePublico({ previa = false }: { previa?: boolean }) {
 
   return (
     <main className="page">
+      {voltar && <Link to={voltar} className="voltar">← Todos os lotes</Link>}
       <Estado loading={loading} error={error} onRetry={reload}>
         {data && (
           <>

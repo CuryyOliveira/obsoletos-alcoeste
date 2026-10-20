@@ -13,3 +13,25 @@ describe('auth por PIN', () => {
     expect(sessaoValida(req())).toBe(false);
   });
 });
+
+import { criarCookieView, pinVisualizacaoCorreto, sessaoViewValida } from '../server/auth';
+
+describe('sessão de visualização', () => {
+  it('cookie de visualização NÃO vale como administrador; o de admin vale como visualização', () => {
+    process.env.VIEW_PIN = '8765';
+    const view = criarCookieView().split(';')[0];
+    const admin = criarCookie().split(';')[0];
+    expect(sessaoViewValida(req(view))).toBe(true);
+    expect(sessaoValida(req(view))).toBe(false);
+    expect(sessaoViewValida(req(admin))).toBe(true);
+    // forjar: trocar o nome do cookie de visualização pelo de admin não passa
+    expect(sessaoValida(req(view.replace('obs_view', 'obs_sess')))).toBe(false);
+  });
+  it('sem VIEW_PIN a visualização fica desligada', () => {
+    expect(pinVisualizacaoCorreto('8765')).toBe(true);
+    expect(pinVisualizacaoCorreto('0000')).toBe(false);
+    delete process.env.VIEW_PIN;
+    expect(pinVisualizacaoCorreto('8765')).toBe(false);
+    expect(pinVisualizacaoCorreto('')).toBe(false);
+  });
+});
