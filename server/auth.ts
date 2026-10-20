@@ -22,14 +22,17 @@ export function pinCorreto(pin: unknown): boolean {
   return !!esperado && typeof pin === 'string' && igual(pin, esperado);
 }
 
-export function criarCookie(): string {
+/** Secure só quando a requisição é HTTPS (Vercel envia x-forwarded-proto); permite testar em http local. */
+const https = (req?: VercelRequest) => !req || req.headers['x-forwarded-proto'] === 'https';
+
+export function criarCookie(req?: VercelRequest): string {
   const exp = Date.now() + DIAS * 864e5;
   const v = `${exp}.${sign(String(exp))}`;
-  return `${COOKIE}=${v}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${DIAS * 86400}`;
+  return `${COOKIE}=${v}; HttpOnly;${https(req) ? ' Secure;' : ''} SameSite=Strict; Path=/; Max-Age=${DIAS * 86400}`;
 }
 
-export function limparCookie(): string {
-  return `${COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
+export function limparCookie(req?: VercelRequest): string {
+  return `${COOKIE}=; HttpOnly;${https(req) ? ' Secure;' : ''} SameSite=Strict; Path=/; Max-Age=0`;
 }
 
 export function sessaoValida(req: VercelRequest): boolean {
