@@ -4,7 +4,6 @@ import { api } from '../api';
 import { useAsync } from '../useAsync';
 import { Estado } from '../components/Estado';
 import { NovoItem } from '../components/NovoItem';
-import { NovoLote } from '../components/NovoLote';
 
 const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const PAGINA = 50;
@@ -19,7 +18,6 @@ export default function AdminLista() {
   const [semFoto, setSemFoto] = useState(false);
   const [limite, setLimite] = useState(PAGINA);
   const [novo, setNovo] = useState(false);
-  const [novoLote, setNovoLote] = useState(false);
 
   const filtrados = useMemo(() => {
     const t = norm(q.trim());
@@ -37,17 +35,11 @@ export default function AdminLista() {
   return (
     <main className="page">
       {/* fora do <Estado>: recarregar a lista não pode desmontar o formulário nem apagar a mensagem de sucesso */}
-      {data && (novoLote ? (
-        <NovoLote lotes={data.lotes} onCriado={recarregar} onFechar={() => setNovoLote(false)}
-          onAdicionarItens={(n) => { setLote(String(n)); setNovoLote(false); setNovo(true); }} />
-      ) : novo ? (
+      {data && (novo ? (
         <NovoItem lotes={data.lotes} loteInicial={lote} onFechar={() => setNovo(false)}
           onCriado={recarregar} />
       ) : (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn primario" onClick={() => setNovo(true)}>+ Adicionar item</button>
-          <button className="btn" onClick={() => setNovoLote(true)}>+ Criar lote</button>
-        </div>
+        <button className="btn primario" onClick={() => setNovo(true)}>+ Adicionar item</button>
       ))}
       <Estado loading={loading} error={error} onRetry={reload}>
         <p className="resumo"><strong>{total}</strong> materiais · <strong>{pend}</strong> sem foto

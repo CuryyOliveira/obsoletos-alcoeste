@@ -1,11 +1,16 @@
-import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAsync } from '../useAsync';
 import { Estado } from '../components/Estado';
+import { NovoLote } from '../components/NovoLote';
 
 export default function AdminLotes() {
-  const { data, error, loading, reload } = useAsync(() => api.materiais());
+  const nav = useNavigate();
+  const fresco = useRef(false);
+  const { data, error, loading, reload } = useAsync(() => api.materiais(fresco.current));
+  const recarregar = () => { fresco.current = true; reload(); };
+  const [criando, setCriando] = useState(false);
 
   const lotes = useMemo(
     () =>
@@ -24,6 +29,13 @@ export default function AdminLotes() {
   return (
     <main className="page">
       <h1>Lotes</h1>
+      {/* fora do <Estado>: recarregar a lista não pode desmontar o formulário nem apagar a mensagem de sucesso */}
+      {data && (criando ? (
+        <NovoLote lotes={data.lotes} onCriado={recarregar} onFechar={() => setCriando(false)}
+          onAdicionarItens={(n) => nav(`/admin/materiais?lote=${n}`)} />
+      ) : (
+        <button className="btn primario" onClick={() => setCriando(true)}>+ Criar lote</button>
+      ))}
       <Estado loading={loading} error={error} onRetry={reload}>
         {lotes.length === 0 && <p className="aviso">Nenhum lote cadastrado na aba Lotes da planilha.</p>}
         <ul className="cards">
