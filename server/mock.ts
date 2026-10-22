@@ -35,12 +35,14 @@ export function createMock(): DataSource {
   }));
   const feitos = new Map<string, string>(); // uploadId -> urlImagem
   const adicionados = new Map<string, string>(); // requestId -> id
+  const lotesMem: Lote[] = [...lotes];
+  const lotesFeitos = new Map<string, number>(); // requestId -> número
   const excluidos = new Set<string>();
   const qtdFeitas = new Map<string, { alterada: boolean; anterior: number; atual: number }>(); // requestId -> resultado
 
   return {
     async listLotes() {
-      return lotes;
+      return lotesMem.map((l) => ({ ...l }));
     },
     async listMateriais() {
       return materiais.map((m) => ({ ...m }));
@@ -71,6 +73,14 @@ export function createMock(): DataSource {
       if (i < 0) throw new Error('Material não encontrado');
       excluidos.add(materiais[i].id);
       materiais.splice(i, 1);
+    },
+    async criarLote({ numero, nome, requestId }) {
+      const ja = lotesFeitos.get(requestId);
+      if (ja !== undefined) return { numero: ja };
+      if (lotesMem.some((l) => l.numero === numero)) throw new Error('lote_existente');
+      lotesMem.push({ numero, nome });
+      lotesFeitos.set(requestId, numero);
+      return { numero };
     },
     async alterarQuantidade({ materialId, quantidade, requestId }) {
       const ja = qtdFeitas.get(requestId);

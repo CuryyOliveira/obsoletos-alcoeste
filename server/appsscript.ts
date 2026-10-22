@@ -66,6 +66,11 @@ export function createAppsScript(url: string, key: string, fetchImpl: typeof fet
     async excluirMaterial({ materialId }) {
       await chamar({ action: 'delete', materialId });
     },
+    async criarLote(input) {
+      const j = await chamar({ action: 'addlote', ...input });
+      if (typeof j.numero !== 'number') throw new Error('Resposta de criação de lote inválida');
+      return { numero: j.numero };
+    },
     async alterarQuantidade({ materialId, quantidade, requestId }) {
       const j = await chamar({ action: 'qty', materialId, quantidade, requestId });
       if (typeof j.anterior !== 'number' || typeof j.atual !== 'number') throw new Error('Resposta de quantidade inválida');

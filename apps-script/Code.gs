@@ -33,6 +33,7 @@ function doPost(e) {
       case 'add': return out(adicionarMaterial(req));
       case 'delete': return out(excluirMaterial(req));
       case 'qty': return out(alterarQuantidade(req));
+      case 'addlote': return out(criarLote(req));
       default: return out({ ok: false, erro: 'acao_invalida' });
     }
   } catch (err) {
@@ -322,6 +323,47 @@ function alterarQuantidade(req) {
     }
     M.sh.getRange(linha, M.idx['QUANTIDADE'] + 1).setValue(qtd);
     return { ok: true, alterada: true, anterior: anterior, atual: qtd };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Cria um lote no fim da aba Lotes: VENDA (número) e LOTE (nome). As demais colunas (ABA_CATALOGO, URL_CATALOGO,
+ * QR_CODE, QR_ABRIR…) recebem as FÓRMULAS da última linha preenchida, se houver; colunas sem fórmula ficam em branco.
+ * Recusa número já existente e é idempotente por requestId. Nunca altera nem apaga linhas existentes.
+ */
+function criarLote(req) {
+  var rid = String(req.requestId || '');
+  var numero = Number(req.numero);
+  var nome = limpaTexto(req.nome, 60);
+  if (!/^[\w.-]{1,64}$/.test(rid) || !isFinite(numero) || numero < 1 || numero > 999999 || numero % 1 || !nome)
+    return { ok: false, erro: 'dados_invalidos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var feito = props.getProperty('lote_' + rid);
+    if (feito) return { ok: true, numero: Number(feito) };
+    var L = tabela(ABA_LOTES, ['VENDA', 'LOTE']);
+    var ultima = 1;
+    for (var i = 1; i < L.v.length; i++) {
+      var v = L.v[i][L.idx['VENDA']];
+      if (String(v).trim() === '') continue;
+      if (Number(v) === numero) return { ok: false, erro: 'lote_existente' };
+      ultima = i + 1;
+    }
+    var sh = L.sh;
+    var linha = ultima + 1;
+    var nCols = L.v[0].length;
+    if (ultima > 1) {
+      var f = sh.getRange(ultima, 1, 1, nCols).getFormulasR1C1()[0];
+      for (var k = 0; k < nCols; k++) if (f[k]) sh.getRange(linha, k + 1).setFormulaR1C1(f[k]);
+    }
+    sh.getRange(linha, L.idx['VENDA'] + 1).setValue(numero);
+    gravaTexto(sh.getRange(linha, L.idx['LOTE'] + 1), nome);
+    props.setProperty('lote_' + rid, String(numero));
+    return { ok: true, numero: numero };
   } finally {
     lock.releaseLock();
   }

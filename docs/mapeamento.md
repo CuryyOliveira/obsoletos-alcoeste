@@ -20,7 +20,7 @@ O script lê pelo **nome do cabeçalho** (linha 1), não pela letra da coluna.
 |---|---|
 | VENDA | Lote.numero (na URL: `/lote/3`) |
 | LOTE | Lote.nome |
-| ABA_CATALOGO, URL_CATALOGO, QR_CODE, QR_ABRIR | preservadas, não lidas, não alteradas |
+| ABA_CATALOGO, URL_CATALOGO, QR_CODE, QR_ABRIR | não lidas; em lote novo ("Criar lote") só recebem as fórmulas da última linha, se existirem; linhas existentes nunca são alteradas |
 
 Abas "Lote 1/2/3": visões geradas por fórmula; o app não as usa.
 

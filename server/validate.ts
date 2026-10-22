@@ -1,4 +1,4 @@
-import type { NovoMaterial } from './types.js';
+import type { NovoLote, NovoMaterial } from './types.js';
 
 export const MAX_JPEG_BYTES = 3 * 1024 * 1024;
 
@@ -44,4 +44,14 @@ export function validarQuantidade(v: unknown): { valor: number | null } | { erro
   if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1_000_000 || Math.round(v * 1000) !== v * 1000)
     return { erro: 'Quantidade inválida. Use um número de 0 a 1.000.000.' };
   return { valor: v };
+}
+
+/** Valida o formulário de novo lote. Devolve o lote limpo ou a mensagem de erro para o usuário. */
+export function validarNovoLote(b: Record<string, unknown> | undefined): { valor: NovoLote } | { erro: string } {
+  const numero = typeof b?.numero === 'number' ? b.numero : Number(b?.numero);
+  const nome = limpo(b?.nome, 60);
+  if (!Number.isInteger(numero) || numero < 1 || numero > 999_999) return { erro: 'O número do lote deve ser um inteiro entre 1 e 999999.' };
+  if (!nome) return { erro: 'Informe o nome do lote (até 60 caracteres).' };
+  if (!idValido(b?.requestId)) return { erro: 'Requisição inválida. Recarregue a página.' };
+  return { valor: { numero, nome, requestId: b!.requestId as string } };
 }

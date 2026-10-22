@@ -172,3 +172,31 @@ describe('alterar quantidade (confirmação da foto)', () => {
     expect(A.mat.v[2][5]).toBe(2);
   });
 });
+
+describe('criar lote', () => {
+  const lote = (o: object = {}) => ({ action: 'addlote', requestId: 'l1', numero: 5, nome: 'Ar Condicionado', ...o });
+  it('grava VENDA e LOTE no fim da aba Lotes, sem mexer nas linhas existentes', () => {
+    const antes = A.abas.Lotes.v.map((l) => [...l]);
+    expect(A.chamar(lote())).toEqual({ ok: true, numero: 5 });
+    expect(A.abas.Lotes.v).toHaveLength(5);
+    expect(A.abas.Lotes.v[4].slice(0, 2)).toEqual([5, 'Ar Condicionado']);
+    expect(A.abas.Lotes.v.slice(0, 4)).toEqual(antes);
+  });
+  it('copia fórmulas da última linha preenchida', () => {
+    A.abas.Lotes.f = A.abas.Lotes.v.map(() => ['', '', '="Lote "&RC[-2]']);
+    A.chamar(lote());
+    expect(A.abas.Lotes.f[4][2]).toBe('="Lote "&RC[-2]');
+  });
+  it('recusa número existente; repetir requestId não duplica', () => {
+    expect(A.chamar(lote({ numero: 3 })).erro).toBe('lote_existente');
+    A.chamar(lote()); expect(A.chamar(lote()).ok).toBe(true);
+    expect(A.abas.Lotes.v).toHaveLength(5);
+  });
+  it('dados inválidos e texto com "=" vira texto', () => {
+    for (const ruim of [{ numero: 0 }, { numero: 1.5 }, { numero: 'a' }, { nome: ' ' }, { nome: 'x'.repeat(61) }, { requestId: '../x' }])
+      expect(A.chamar(lote({ requestId: 'z' + Math.random(), ...ruim })).erro).toBe('dados_invalidos');
+    expect(A.abas.Lotes.v).toHaveLength(4);
+    A.chamar(lote({ nome: '=1+1' }));
+    expect(String(A.abas.Lotes.v[4][1])).not.toContain('#FORMULA');
+  });
+});

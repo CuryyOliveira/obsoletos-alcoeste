@@ -52,3 +52,18 @@ describe('API admin: adicionar/excluir', () => {
     expect((await post({ acao: 'apagar-tudo' })).code).toBe(400);
   });
 });
+
+describe('API admin: criar lote', () => {
+  it('sem login: 401; com login cria, aparece na lista e repetir não duplica', async () => {
+    const corpo = { acao: 'criarLote', numero: 7, nome: 'Lote Novo', requestId: 'rl-1' };
+    expect((await post(corpo, false)).code).toBe(401);
+    const a = await post(corpo); const b = await post(corpo);
+    expect([a.code, b.code]).toEqual([200, 200]);
+    expect((await snapshot(true)).lotes.filter((l) => l.numero === 7)).toHaveLength(1);
+  });
+  it('recusa número existente com outro nome e dados inválidos', async () => {
+    expect((await post({ acao: 'criarLote', numero: 1, nome: 'Outro', requestId: 'rl-2' })).code).toBe(400);
+    for (const ruim of [{ numero: 0 }, { numero: 2.5 }, { nome: '' }, { requestId: '' }])
+      expect((await post({ acao: 'criarLote', numero: 8, nome: 'X', requestId: 'rl-3', ...ruim })).code).toBe(400);
+  });
+});
