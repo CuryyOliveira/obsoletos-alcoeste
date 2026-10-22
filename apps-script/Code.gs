@@ -382,8 +382,31 @@ function garantirAbaLote(numero) {
   if (ss.getSheetByName(nome)) return 'existente';
   var modelo = ss.getSheetByName(ABA_MODELO_LOTE);
   if (!modelo || norm(modelo.getRange(1, 1).getValue()).indexOf('LOTE') < 0) return 'sem_modelo'; // A1 = "Nº do lote:"
+  // colunas de Materiais pelo NOME do cabeçalho (lido ANTES de copiar: se faltar coluna, nada é criado)
+  var M = tabela(ABA_MATERIAIS, ['VENDA', 'DESCRICAO', 'QUANTIDADE', 'URL_IMAGEM']);
+  var rng = function (nomeCol) { var l = letraColuna(M.idx[nomeCol]); return "'" + ABA_MATERIAIS + "'!$" + l + '$2:$' + l; };
+  var col = function (nomeCol) { var l = letraColuna(M.idx[nomeCol]); return "'" + ABA_MATERIAIS + "'!$" + l + ':$' + l; };
+  var f = rng('VENDA') + '=$B$1';
   var nova = modelo.copyTo(ss);
   nova.setName(nome);
   nova.getRange(1, 2).setValue(numero);
+  // A3 e a lista (A6:C) do modelo são específicas do lote 1: apaga o conteúdo copiado e põe fórmulas ligadas ao B1
+  nova.getRange(3, 1).clearContent();
+  nova.getRange(6, 1, Math.max(nova.getLastRow() - 5, 1), 3).clearContent();
+  nova.getRange(3, 1).setFormula('=COUNTIF(' + col('VENDA') + ',$B$1)&" itens · "&SUMIF(' + col('VENDA') + ',$B$1,' + col('QUANTIDADE') + ')&" peças disponíveis"');
+  nova.getRange(6, 1).setFormula('=IFERROR(FILTER(' + rng('DESCRICAO') + ',' + f + '),"")');
+  nova.getRange(6, 2).setFormula('=IFERROR(FILTER(' + rng('QUANTIDADE') + ',' + f + '),"")');
+  nova.getRange(6, 3).setFormula('=IFERROR(ARRAYFORMULA(IF(FILTER(' + rng('URL_IMAGEM') + ',' + f + ')="","",HYPERLINK(FILTER(' + rng('URL_IMAGEM') + ',' + f + '),"Ver foto"))),"")');
   return 'criada';
+}
+
+function letraColuna(i) {
+  var s = '';
+  i++;
+  while (i > 0) {
+    var m = (i - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    i = Math.floor((i - 1) / 26);
+  }
+  return s;
 }

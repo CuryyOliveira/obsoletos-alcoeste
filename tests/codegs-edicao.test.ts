@@ -23,6 +23,8 @@ class Aba {
       setValue: (x: unknown) => { garante(r); aba.v[r - 1][c - 1] = typeof x === 'string' && x.startsWith('=') && aba.fmt[`${r},${c}`] !== '@' ? `#FORMULA:${x}` : x; aba.f[r - 1][c - 1] = ''; },
       setValues: (m: unknown[][]) => m.forEach((row, i) => { garante(r + i); row.forEach((x, j) => { aba.v[r - 1 + i][c - 1 + j] = x; }); }),
       setFormulaR1C1: (x: string) => { garante(r); aba.f[r - 1][c - 1] = x; aba.v[r - 1][c - 1] = `=calc(${x})`; },
+      clearContent: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) { if (aba.v[r - 1 + i]) aba.v[r - 1 + i][c - 1 + j] = ''; if (aba.f[r - 1 + i]) aba.f[r - 1 + i][c - 1 + j] = ''; } },
+      setFormula: (x: string) => { garante(r); aba.v[r - 1][c - 1] = `#F:${x}`; aba.f[r - 1][c - 1] = ''; },
       setNumberFormat(x: string) { aba.fmt[`${r},${c}`] = x; return this; },
     };
   }
@@ -42,7 +44,7 @@ function ambiente() {
     ...[1, 2, 3].map(() => ['', '', '', '', '', '', '', 'R[0]C[-2]*R[0]C[-1]', '', 'SE(RC[-1]="";"PENDENTE";"OK")']), // toda linha de dados tem as fórmulas
   ]);
   const lotes = new Aba('Lotes', [['VENDA', 'LOTE', 'ABA_CATALOGO'], [1, 'Herbicida', 'Lote 1'], [3, 'Colhedora JD', 'Lote 3'], [4, 'Teste', 'Lote 4']]);
-  const modelo = new Aba('Lote 1', [['Nº do lote:', 1], ['Lote 1 — Herbicida', ''], ['DESCRIÇÃO', 'QUANTIDADE']], [['', ''], ['=titulo', ''], ['', '']]);
+  const modelo = new Aba('Lote 1', [['Nº do lote:', 1], ['Lote 1 — Herbicida', ''], ['75 itens · 868 peças disponíveis'], [''], ['DESCRIÇÃO', 'QUANTIDADE', 'FOTO'], ['JUNTA', 4, 'Ver foto'], ['CORPO', 61, 'Ver foto']], [['', ''], ['=titulo', ''], [''], [''], ['', ''], ['', ''], ['', '']]);
   const abas: Record<string, Aba> = { Materiais: mat, Lotes: lotes, 'Lote 1': modelo };
   [mat, lotes, modelo].forEach((a) => { a.reg = abas; });
   const props: Record<string, string> = { APPS_SCRIPT_KEY: KEY };
@@ -198,9 +200,21 @@ describe('criar lote', () => {
     expect(A.chamar(lote())).toEqual({ ok: true, numero: 5, aba: 'criada' });
     const nova = A.abas['Lote 5'];
     expect(nova.v[0]).toEqual(['Nº do lote:', 5]);
+    expect(nova.v[4]).toEqual(['DESCRIÇÃO', 'QUANTIDADE', 'FOTO']); // cabeçalho do modelo preservado
     expect(nova.f[1][0]).toBe('=titulo'); // fórmulas do modelo preservadas
     expect(A.abas['Lote 1'].v[0]).toEqual(['Nº do lote:', 1]); // modelo intacto
     expect(A.chamar(lote()).aba).toBe('existente'); // repetição
+  });
+  it('A3 e a lista A6:C ficam ligadas ao B1 (nada do lote 1 é copiado)', () => {
+    A.chamar(lote());
+    const nova = A.abas['Lote 5'];
+    expect(String(nova.v[2][0])).toContain("#F:=COUNTIF('Materiais'!$B:$B,$B$1)");
+    expect(String(nova.v[2][0])).toContain("SUMIF('Materiais'!$B:$B,$B$1,'Materiais'!$F:$F)");
+    expect(String(nova.v[5][0])).toBe("#F:=IFERROR(FILTER('Materiais'!$E$2:$E,'Materiais'!$B$2:$B=$B$1),\"\")");
+    expect(String(nova.v[5][1])).toContain("FILTER('Materiais'!$F$2:$F,'Materiais'!$B$2:$B=$B$1)");
+    expect(String(nova.v[5][2])).toContain("HYPERLINK(FILTER('Materiais'!$I$2:$I");
+    expect(nova.v.flat().join('|')).not.toContain('JUNTA'); // dados do lote 1 não vazam
+    expect(A.abas['Lote 1'].v[5][0]).toBe('JUNTA'); // modelo intacto
   });
   it('sem aba-modelo o lote é criado na aba Lotes e avisa', () => {
     delete A.abas['Lote 1'];
