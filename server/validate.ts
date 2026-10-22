@@ -34,3 +34,14 @@ export function validarNovoMaterial(b: Record<string, unknown> | undefined): { v
   if (!idValido(b?.requestId)) return { erro: 'Requisição inválida. Recarregue a página.' };
   return { valor: { lote, codigo, descricao, quantidade, requestId: b!.requestId as string } };
 }
+
+/**
+ * Quantidade confirmada pelo conferente. Ausente/null = não informou (sem alteração).
+ * Zero é aceito. Número ≥ 0, até 1.000.000 e 3 casas decimais.
+ */
+export function validarQuantidade(v: unknown): { valor: number | null } | { erro: string } {
+  if (v === undefined || v === null) return { valor: null };
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1_000_000 || Math.round(v * 1000) !== v * 1000)
+    return { erro: 'Quantidade inválida. Use um número de 0 a 1.000.000.' };
+  return { valor: v };
+}

@@ -66,6 +66,11 @@ export function createAppsScript(url: string, key: string, fetchImpl: typeof fet
     async excluirMaterial({ materialId }) {
       await chamar({ action: 'delete', materialId });
     },
+    async alterarQuantidade({ materialId, quantidade, requestId }) {
+      const j = await chamar({ action: 'qty', materialId, quantidade, requestId });
+      if (typeof j.anterior !== 'number' || typeof j.atual !== 'number') throw new Error('Resposta de quantidade inválida');
+      return { alterada: j.alterada === true, anterior: j.anterior, atual: j.atual };
+    },
     async registrarUrl({ materialId, urlImagem }) {
       await chamar({ action: 'seturl', materialId, url: urlImagem });
     },

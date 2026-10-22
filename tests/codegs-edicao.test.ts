@@ -128,3 +128,47 @@ describe('excluir item', () => {
     expect(A.mat.v).toHaveLength(4);
   });
 });
+
+describe('alterar quantidade (confirmação da foto)', () => {
+  const qty = (o: object = {}) => ({ action: 'qty', materialId: '03-157', quantidade: 9, requestId: 'q1', ...o });
+  it('altera só a coluna QUANTIDADE do item e registra na aba Historico (criada com cabeçalho)', () => {
+    const antes = A.mat.v.map((l) => [...l]);
+    expect(A.chamar(qty())).toEqual({ ok: true, alterada: true, anterior: 2, atual: 9 });
+    expect(A.mat.v[2][5]).toBe(9);
+    for (let i = 0; i < antes.length; i++) for (let c = 0; c < antes[i].length; c++) if (!(i === 2 && c === 5)) expect(A.mat.v[i][c]).toEqual(antes[i][c]);
+    const h = A.abas.Historico;
+    expect(h.v[0]).toEqual(['DATA_HORA', 'ID_MATERIAL', 'VENDA', 'LOTE', 'CODIGO', 'DESCRICAO', 'QTD_ANTERIOR', 'QTD_NOVA']);
+    expect(h.v).toHaveLength(2);
+    expect(h.v[1].slice(1)).toEqual(['03-157', 3, 'Colhedora JD', '308393', 'VALVULA', 2, 9]);
+  });
+  it('mesmo requestId repetido não duplica o histórico; mesmo valor não grava nada', () => {
+    A.chamar(qty()); A.chamar(qty());
+    expect(A.abas.Historico.v).toHaveLength(2);
+    const igual = A.chamar(qty({ requestId: 'q2', quantidade: 9 }));
+    expect(igual).toMatchObject({ ok: true, alterada: false });
+    expect(A.abas.Historico.v).toHaveLength(2);
+  });
+  it('aceita zero; nova troca acrescenta outra linha ao histórico', () => {
+    A.chamar(qty()); 
+    expect(A.chamar(qty({ requestId: 'q3', quantidade: 0 })).alterada).toBe(true);
+    expect(A.mat.v[2][5]).toBe(0);
+    expect(A.abas.Historico.v.map((l) => l.slice(6))).toEqual([['QTD_ANTERIOR', 'QTD_NOVA'], [2, 9], [9, 0]]);
+  });
+  it('célula vazia conta como 0 e histórico não vira fórmula', () => {
+    A.mat.v[2][5] = '';
+    A.mat.v[2][4] = '=IMPORTRANGE("x";"y")';
+    expect(A.chamar(qty({ quantidade: 4 }))).toMatchObject({ anterior: 0, atual: 4 });
+    expect(String(A.abas.Historico.v[1][5])).not.toContain('#FORMULA');
+  });
+  it('recusa dados inválidos e ID inexistente sem escrever nada', () => {
+    for (const ruim of [{ quantidade: -1 }, { quantidade: 1.2345 }, { quantidade: '5' }, { quantidade: null }, { quantidade: 2e6 }, { materialId: '../x' }, { requestId: '' }])
+      expect(A.chamar(qty(ruim)).erro).toBe('dados_invalidos');
+    expect(A.chamar(qty({ materialId: '99-999' })).erro).toBe('falha_interna');
+    expect(A.mat.v[2][5]).toBe(2);
+    expect(A.abas.Historico).toBeUndefined();
+  });
+  it('chave errada é recusada', () => {
+    expect(A.chamar(qty({ key: 'errada' })).erro).toBe('nao_autorizado');
+    expect(A.mat.v[2][5]).toBe(2);
+  });
+});

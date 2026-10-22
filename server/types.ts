@@ -30,6 +30,8 @@ export interface DataSource {
   registrarUrl(input: { materialId: string; urlImagem: string }): Promise<void>;
   /** Cria o material (ID gerado pelo script). Idempotente por requestId. */
   adicionarMaterial(input: NovoMaterial): Promise<{ id: string }>;
+  /** Altera só a QUANTIDADE do material e registra na aba Historico. Idempotente por requestId. */
+  alterarQuantidade(input: { materialId: string; quantidade: number; requestId: string }): Promise<{ alterada: boolean; anterior: number; atual: number }>;
   /** Exclusão reversível: a linha vai para a aba Excluidos antes de sair de Materiais. */
   excluirMaterial(input: { materialId: string }): Promise<void>;
   /** Bytes da imagem de um material (para o proxy /api/img). */

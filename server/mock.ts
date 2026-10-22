@@ -36,6 +36,7 @@ export function createMock(): DataSource {
   const feitos = new Map<string, string>(); // uploadId -> urlImagem
   const adicionados = new Map<string, string>(); // requestId -> id
   const excluidos = new Set<string>();
+  const qtdFeitas = new Map<string, { alterada: boolean; anterior: number; atual: number }>(); // requestId -> resultado
 
   return {
     async listLotes() {
@@ -70,6 +71,16 @@ export function createMock(): DataSource {
       if (i < 0) throw new Error('Material não encontrado');
       excluidos.add(materiais[i].id);
       materiais.splice(i, 1);
+    },
+    async alterarQuantidade({ materialId, quantidade, requestId }) {
+      const ja = qtdFeitas.get(requestId);
+      if (ja) return ja;
+      const m = materiais.find((x) => x.id === materialId);
+      if (!m) throw new Error('Material não encontrado');
+      const r = { alterada: m.quantidade !== quantidade, anterior: m.quantidade, atual: quantidade };
+      m.quantidade = quantidade;
+      qtdFeitas.set(requestId, r);
+      return r;
     },
     async registrarUrl({ materialId, urlImagem }) {
       const m = materiais.find((x) => x.id === materialId);

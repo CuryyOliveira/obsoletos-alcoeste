@@ -10,6 +10,7 @@ var FOLDER_ID = '1HcHurJLG1NjRB4O1jjG2y2VoDwkZ5N7e'; // pasta "FOTOS DO CATÁLOG
 var ABA_MATERIAIS = 'Materiais';
 var ABA_LOTES = 'Lotes';
 var ABA_EXCLUIDOS = 'Excluidos';
+var ABA_HISTORICO = 'Historico';
 var MAX_BYTES = 3 * 1024 * 1024;
 var MAX_IMG_BYTES = 12 * 1024 * 1024;
 // Fotos hospedadas no Vercel Blob (lote 4 em diante): só este formato de URL é aceito.
@@ -31,6 +32,7 @@ function doPost(e) {
       case 'seturl': return out(registrarUrl(req));
       case 'add': return out(adicionarMaterial(req));
       case 'delete': return out(excluirMaterial(req));
+      case 'qty': return out(alterarQuantidade(req));
       default: return out({ ok: false, erro: 'acao_invalida' });
     }
   } catch (err) {
@@ -269,6 +271,57 @@ function excluirMaterial(req) {
     if (String(ex.getRange(destino, M.idx['ID_MATERIAL'] + 1).getValue()).trim() !== id) throw new Error('arquivo_falhou');
     M.sh.deleteRow(linha);
     return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Confirmação da quantidade pelo conferente: altera SÓ a célula QUANTIDADE do material e registra a troca na aba
+ * Historico (criada se não existir). O valor anterior é lido da própria planilha, nunca informado pelo site.
+ * Idempotente por requestId: repetir não duplica o registro. Se o valor já é igual, não grava nada.
+ */
+function alterarQuantidade(req) {
+  var id = String(req.materialId || '');
+  var rid = String(req.requestId || '');
+  var qtd = req.quantidade;
+  if (!/^[\w.-]{1,64}$/.test(id) || !/^[\w.-]{1,64}$/.test(rid) || typeof qtd !== 'number' || !isFinite(qtd) || qtd < 0 || qtd > 1000000 || Math.round(qtd * 1000) !== qtd * 1000)
+    return { ok: false, erro: 'dados_invalidos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var M = tabela(ABA_MATERIAIS, ['ID_MATERIAL', 'VENDA', 'LOTE', 'CODIGO', 'DESCRICAO', 'QUANTIDADE']);
+    var linha = achar(M, id);
+    var r = M.v[linha - 1];
+    var anterior = Number(r[M.idx['QUANTIDADE']]);
+    if (!isFinite(anterior)) anterior = 0; // célula vazia conta como 0
+    if (anterior === qtd) return { ok: true, alterada: false, anterior: anterior, atual: qtd };
+    if (!props.getProperty('qtyh_' + rid)) { // histórico ANTES da troca: nenhuma alteração fica sem registro
+      var ss = SpreadsheetApp.getActive();
+      var h = ss.getSheetByName(ABA_HISTORICO);
+      if (!h) {
+        h = ss.insertSheet(ABA_HISTORICO);
+        h.getRange(1, 1, 1, 8).setValues([['DATA_HORA', 'ID_MATERIAL', 'VENDA', 'LOTE', 'CODIGO', 'DESCRICAO', 'QTD_ANTERIOR', 'QTD_NOVA']]);
+      }
+      var lin = h.getLastRow() + 1;
+      var lote = String(r[M.idx['LOTE']]).trim();
+      var cod = String(r[M.idx['CODIGO']]).trim();
+      var desc = String(r[M.idx['DESCRICAO']]).trim();
+      // textos vindos da planilha nunca viram fórmula no histórico
+      [2, 4, 5, 6].forEach(function (c) { h.getRange(lin, c).setNumberFormat('@'); });
+      h.getRange(lin, 1).setValue(new Date());
+      h.getRange(lin, 2).setValue(id);
+      h.getRange(lin, 3).setValue(r[M.idx['VENDA']]);
+      h.getRange(lin, 4).setValue(lote);
+      h.getRange(lin, 5).setValue(cod);
+      h.getRange(lin, 6).setValue(desc);
+      h.getRange(lin, 7).setValue(anterior);
+      h.getRange(lin, 8).setValue(qtd);
+      props.setProperty('qtyh_' + rid, '1');
+    }
+    M.sh.getRange(linha, M.idx['QUANTIDADE'] + 1).setValue(qtd);
+    return { ok: true, alterada: true, anterior: anterior, atual: qtd };
   } finally {
     lock.releaseLock();
   }
