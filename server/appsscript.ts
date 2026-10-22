@@ -69,7 +69,8 @@ export function createAppsScript(url: string, key: string, fetchImpl: typeof fet
     async criarLote(input) {
       const j = await chamar({ action: 'addlote', ...input });
       if (typeof j.numero !== 'number') throw new Error('Resposta de criação de lote inválida');
-      return { numero: j.numero };
+      const aba = j.aba === 'criada' || j.aba === 'existente' ? j.aba : 'sem_modelo';
+      return { numero: j.numero, aba };
     },
     async alterarQuantidade({ materialId, quantidade, requestId }) {
       const j = await chamar({ action: 'qty', materialId, quantidade, requestId });

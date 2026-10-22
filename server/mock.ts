@@ -76,11 +76,11 @@ export function createMock(): DataSource {
     },
     async criarLote({ numero, nome, requestId }) {
       const ja = lotesFeitos.get(requestId);
-      if (ja !== undefined) return { numero: ja };
+      if (ja !== undefined) return { numero: ja, aba: 'existente' as const };
       if (lotesMem.some((l) => l.numero === numero)) throw new Error('lote_existente');
       lotesMem.push({ numero, nome });
       lotesFeitos.set(requestId, numero);
-      return { numero };
+      return { numero, aba: 'criada' as const };
     },
     async alterarQuantidade({ materialId, quantidade, requestId }) {
       const ja = qtdFeitas.get(requestId);

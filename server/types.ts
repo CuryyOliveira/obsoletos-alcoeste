@@ -39,7 +39,7 @@ export interface DataSource {
   /** Altera só a QUANTIDADE do material e registra na aba Historico. Idempotente por requestId. */
   alterarQuantidade(input: { materialId: string; quantidade: number; requestId: string }): Promise<{ alterada: boolean; anterior: number; atual: number }>;
   /** Cria um lote (número + nome) no fim da aba Lotes. Idempotente por requestId; recusa número já existente. */
-  criarLote(input: NovoLote): Promise<{ numero: number }>;
+  criarLote(input: NovoLote): Promise<{ numero: number; aba: 'criada' | 'existente' | 'sem_modelo' }>;
   /** Exclusão reversível: a linha vai para a aba Excluidos antes de sair de Materiais. */
   excluirMaterial(input: { materialId: string }): Promise<void>;
   /** Bytes da imagem de um material (para o proxy /api/img). */

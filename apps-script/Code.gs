@@ -11,6 +11,7 @@ var ABA_MATERIAIS = 'Materiais';
 var ABA_LOTES = 'Lotes';
 var ABA_EXCLUIDOS = 'Excluidos';
 var ABA_HISTORICO = 'Historico';
+var ABA_MODELO_LOTE = 'Lote 1'; // aba-modelo (visão do comprador) copiada para cada lote novo
 var MAX_BYTES = 3 * 1024 * 1024;
 var MAX_IMG_BYTES = 12 * 1024 * 1024;
 // Fotos hospedadas no Vercel Blob (lote 4 em diante): só este formato de URL é aceito.
@@ -329,8 +330,9 @@ function alterarQuantidade(req) {
 }
 
 /**
- * Cria um lote no fim da aba Lotes: VENDA (número) e LOTE (nome). As demais colunas (ABA_CATALOGO, URL_CATALOGO,
- * QR_CODE, QR_ABRIR…) recebem as FÓRMULAS da última linha preenchida, se houver; colunas sem fórmula ficam em branco.
+ * Cria um lote no fim da aba Lotes: VENDA (número), LOTE (nome) e ABA_CATALOGO ("Lote N"). As demais colunas
+ * (URL_CATALOGO, QR_CODE, QR_ABRIR…) recebem as FÓRMULAS da última linha preenchida, se houver.
+ * Também cria a aba "Lote N" (visão do comprador) como cópia da aba-modelo, trocando só o número em B1.
  * Recusa número já existente e é idempotente por requestId. Nunca altera nem apaga linhas existentes.
  */
 function criarLote(req) {
@@ -344,7 +346,7 @@ function criarLote(req) {
   try {
     var props = PropertiesService.getScriptProperties();
     var feito = props.getProperty('lote_' + rid);
-    if (feito) return { ok: true, numero: Number(feito) };
+    if (feito) return { ok: true, numero: Number(feito), aba: garantirAbaLote(Number(feito)) };
     var L = tabela(ABA_LOTES, ['VENDA', 'LOTE']);
     var ultima = 1;
     for (var i = 1; i < L.v.length; i++) {
@@ -362,9 +364,26 @@ function criarLote(req) {
     }
     sh.getRange(linha, L.idx['VENDA'] + 1).setValue(numero);
     gravaTexto(sh.getRange(linha, L.idx['LOTE'] + 1), nome);
+    if (L.idx['ABA_CATALOGO'] !== undefined) gravaTexto(sh.getRange(linha, L.idx['ABA_CATALOGO'] + 1), 'Lote ' + numero);
     props.setProperty('lote_' + rid, String(numero));
-    return { ok: true, numero: numero };
+    return { ok: true, numero: numero, aba: garantirAbaLote(numero) };
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Cria a aba "Lote N" copiando a aba-modelo (formatação e fórmulas) e informando o número do lote em B1.
+ * Não sobrescreve aba existente. Devolve 'criada', 'existente' ou 'sem_modelo' (modelo ausente ou diferente do esperado).
+ */
+function garantirAbaLote(numero) {
+  var ss = SpreadsheetApp.getActive();
+  var nome = 'Lote ' + numero;
+  if (ss.getSheetByName(nome)) return 'existente';
+  var modelo = ss.getSheetByName(ABA_MODELO_LOTE);
+  if (!modelo || norm(modelo.getRange(1, 1).getValue()).indexOf('LOTE') < 0) return 'sem_modelo'; // A1 = "Nº do lote:"
+  var nova = modelo.copyTo(ss);
+  nova.setName(nome);
+  nova.getRange(1, 2).setValue(numero);
+  return 'criada';
 }

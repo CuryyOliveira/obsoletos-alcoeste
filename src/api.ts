@@ -47,7 +47,7 @@ export const api = {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'adicionar', ...d }),
     }),
   criarLote: (d: { numero: number; nome: string; requestId: string }) =>
-    req<{ ok: boolean; numero: number }>('/api/admin/material', {
+    req<{ ok: boolean; numero: number; aba?: 'criada' | 'existente' | 'sem_modelo' }>('/api/admin/material', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'criarLote', ...d }),
     }),
   excluirMaterial: (id: string) =>

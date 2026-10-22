@@ -11,7 +11,7 @@ export function NovoLote({ lotes, onCriado, onAdicionarItens, onFechar }: {
   const [numero, setNumero] = useState(sugestao);
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState('');
-  const [criado, setCriado] = useState<{ numero: number; nome: string } | null>(null);
+  const [criado, setCriado] = useState<{ numero: number; nome: string; aba?: string } | null>(null);
   const requestId = useRef(novoUploadId());
 
   async function enviar(e: React.FormEvent) {
@@ -21,8 +21,8 @@ export function NovoLote({ lotes, onCriado, onAdicionarItens, onFechar }: {
     if (lotes.some((l) => l.numero === n)) { setErro(`Já existe o lote ${n} (${lotes.find((l) => l.numero === n)?.nome}). Use outro número.`); return; }
     setBusy(true);
     try {
-      await api.criarLote({ numero: n, nome, requestId: requestId.current });
-      setCriado({ numero: n, nome: nome.trim() });
+      const r = await api.criarLote({ numero: n, nome, requestId: requestId.current });
+      setCriado({ numero: n, nome: nome.trim(), aba: r.aba });
       requestId.current = novoUploadId();
       onCriado();
     } catch (x) { setErro((x as Error).message); }
@@ -32,7 +32,8 @@ export function NovoLote({ lotes, onCriado, onAdicionarItens, onFechar }: {
   if (criado) return (
     <div className="aviso form">
       <h2>Lote criado</h2>
-      <p className="ok" role="status">Lote {criado.numero} — {criado.nome} criado na planilha.</p>
+      <p className="ok" role="status">Lote {criado.numero} — {criado.nome} criado na planilha (aba Lotes{criado.aba === 'criada' ? ` e aba "Lote ${criado.numero}"` : ''}).</p>
+      {criado.aba === 'sem_modelo' && <p className="erro" role="alert">A aba "Lote {criado.numero}" NÃO foi criada: não encontrei a aba-modelo "Lote 1". Crie-a manualmente copiando "Lote 1" e informando o número em B1.</p>}
       <div className="acoes">
         <button className="btn primario grande" onClick={() => onAdicionarItens(criado.numero)}>Adicionar itens a este lote</button>
         <button className="btn grande" onClick={onFechar}>Fechar</button>

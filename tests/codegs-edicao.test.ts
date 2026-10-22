@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 /** Planilha simulada com valores, fórmulas, formatos, abas extras e deleteRow — para testar adicionar/excluir do Code.gs real. */
 class Aba {
   fmt: Record<string, string> = {};
+  reg?: Record<string, Aba>;
+  copyTo() { const n = new Aba('Cópia', this.v.map((r) => [...r]), this.f.map((r) => [...r])); n.reg = this.reg; return n; }
+  setName(x: string) { this.nome = x; if (this.reg) this.reg[x] = this; }
   constructor(public nome: string, public v: unknown[][], public f: string[][] = v.map((r) => r.map(() => ''))) {}
   getLastRow() { return this.v.length; }
   getLastColumn() { return Math.max(...this.v.map((r) => r.length)); }
@@ -39,11 +42,13 @@ function ambiente() {
     ...[1, 2, 3].map(() => ['', '', '', '', '', '', '', 'R[0]C[-2]*R[0]C[-1]', '', 'SE(RC[-1]="";"PENDENTE";"OK")']), // toda linha de dados tem as fórmulas
   ]);
   const lotes = new Aba('Lotes', [['VENDA', 'LOTE', 'ABA_CATALOGO'], [1, 'Herbicida', 'Lote 1'], [3, 'Colhedora JD', 'Lote 3'], [4, 'Teste', 'Lote 4']]);
-  const abas: Record<string, Aba> = { Materiais: mat, Lotes: lotes };
+  const modelo = new Aba('Lote 1', [['Nº do lote:', 1], ['Lote 1 — Herbicida', ''], ['DESCRIÇÃO', 'QUANTIDADE']], [['', ''], ['=titulo', ''], ['', '']]);
+  const abas: Record<string, Aba> = { Materiais: mat, Lotes: lotes, 'Lote 1': modelo };
+  [mat, lotes, modelo].forEach((a) => { a.reg = abas; });
   const props: Record<string, string> = { APPS_SCRIPT_KEY: KEY };
   const ctx: Record<string, unknown> = {
     console,
-    SpreadsheetApp: { getActive: () => ({ getSheetByName: (n: string) => abas[n] ?? null, insertSheet: (n: string) => (abas[n] = new Aba(n, [])) }) },
+    SpreadsheetApp: { getActive: () => ({ getSheetByName: (n: string) => abas[n] ?? null, insertSheet: (n: string) => { const a = new Aba(n, []); a.reg = abas; return (abas[n] = a); } }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (k: string) => props[k] ?? null, setProperty: (k: string, v: string) => { props[k] = v; } }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t: string) => ({ t, setMimeType() { return this; } }) },
@@ -177,15 +182,30 @@ describe('criar lote', () => {
   const lote = (o: object = {}) => ({ action: 'addlote', requestId: 'l1', numero: 5, nome: 'Ar Condicionado', ...o });
   it('grava VENDA e LOTE no fim da aba Lotes, sem mexer nas linhas existentes', () => {
     const antes = A.abas.Lotes.v.map((l) => [...l]);
-    expect(A.chamar(lote())).toEqual({ ok: true, numero: 5 });
+    expect(A.chamar(lote())).toEqual({ ok: true, numero: 5, aba: 'criada' });
     expect(A.abas.Lotes.v).toHaveLength(5);
     expect(A.abas.Lotes.v[4].slice(0, 2)).toEqual([5, 'Ar Condicionado']);
     expect(A.abas.Lotes.v.slice(0, 4)).toEqual(antes);
   });
-  it('copia fórmulas da última linha preenchida', () => {
-    A.abas.Lotes.f = A.abas.Lotes.v.map(() => ['', '', '="Lote "&RC[-2]']);
+  it('preenche ABA_CATALOGO e copia fórmulas das outras colunas da última linha', () => {
+    A.abas.Lotes.v[0].push('URL_CATALOGO');
+    A.abas.Lotes.f = A.abas.Lotes.v.map(() => ['', '', '', '=link(RC[-3])']);
     A.chamar(lote());
-    expect(A.abas.Lotes.f[4][2]).toBe('="Lote "&RC[-2]');
+    expect(A.abas.Lotes.v[4].slice(0, 3)).toEqual([5, 'Ar Condicionado', 'Lote 5']);
+    expect(A.abas.Lotes.f[4][3]).toBe('=link(RC[-3])');
+  });
+  it('cria a aba "Lote N" copiando o modelo e informando o número em B1; não sobrescreve existente', () => {
+    expect(A.chamar(lote())).toEqual({ ok: true, numero: 5, aba: 'criada' });
+    const nova = A.abas['Lote 5'];
+    expect(nova.v[0]).toEqual(['Nº do lote:', 5]);
+    expect(nova.f[1][0]).toBe('=titulo'); // fórmulas do modelo preservadas
+    expect(A.abas['Lote 1'].v[0]).toEqual(['Nº do lote:', 1]); // modelo intacto
+    expect(A.chamar(lote()).aba).toBe('existente'); // repetição
+  });
+  it('sem aba-modelo o lote é criado na aba Lotes e avisa', () => {
+    delete A.abas['Lote 1'];
+    expect(A.chamar(lote())).toEqual({ ok: true, numero: 5, aba: 'sem_modelo' });
+    expect(A.abas.Lotes.v).toHaveLength(5);
   });
   it('recusa número existente; repetir requestId não duplica', () => {
     expect(A.chamar(lote({ numero: 3 })).erro).toBe('lote_existente');

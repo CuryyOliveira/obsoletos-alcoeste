@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const r = await getDataSource().criarLote(v.valor);
       invalidate();
-      return res.status(200).json({ ok: true, numero: r.numero });
+      return res.status(200).json({ ok: true, numero: r.numero, aba: r.aba });
     }
     if (body.acao === 'excluir') {
       if (!idValido(body.id)) return res.status(400).json({ erro: 'Item inválido.' });
